@@ -4,11 +4,546 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>R — Engenharia de sistemas inteligentes</title>
-  <meta name="description"
-    content="Estúdio de software de um engenheiro de controle e automação. Sistemas com IA, web apps e automação industrial." />
+  <title>Proposta — Plataforma clínica em duas etapas</title>
+  <meta name="description" content="Proposta de desenvolvimento: sistema de formulários com painel e leitor de exames com IA." />
+  <!-- Peça comercial: fora de buscadores, mesmo com o repositório público. -->
+  <meta name="robots" content="noindex, nofollow, noarchive" />
   <link rel="icon" type="image/png" href="assets/logo-gradient.png" />
   <link rel="stylesheet" href="styles.css" />
+  <style>
+    /* ── Ajustes da peça de proposta ─────────────────────────────
+       Herda tokens, .panel, .eyebrow, .proof-strip e tipografia de styles.css.
+       Espaçamentos são mais curtos que a landing: a peça vira print. */
+
+    .section {
+      padding: 3.4rem 0;
+    }
+
+    .prop-head {
+      padding-top: 3.2rem;
+    }
+
+    .prop-mark {
+      width: 3.1rem;
+      margin-bottom: 1.8rem;
+    }
+
+    .prop-head h1 {
+      max-width: 20ch;
+      font-size: clamp(2.6rem, 5.6vw, 4.6rem);
+      line-height: 1.02;
+      letter-spacing: -0.045em;
+    }
+
+    .prop-head h1 span {
+      background: var(--accent-gradient);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+
+    .prop-lede {
+      max-width: 46ch;
+      margin-top: 1.4rem;
+      font-size: 1.06rem;
+      color: var(--text-soft);
+    }
+
+    .prop-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+      margin-top: 2rem;
+    }
+
+    /* ── Seções ───────────────────────────────────────────────── */
+
+    .prop-title {
+      display: grid;
+      gap: 1rem;
+      max-width: 62ch;
+      margin-bottom: 2rem;
+    }
+
+    .prop-title h2 {
+      font-size: clamp(1.9rem, 3.6vw, 2.9rem);
+      line-height: 1.06;
+      letter-spacing: -0.035em;
+    }
+
+    .reading {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1.5rem;
+      padding: 2.4rem;
+    }
+
+    .reading p {
+      margin: 0;
+      font-size: 1.02rem;
+      color: var(--text-soft);
+    }
+
+    .reading strong {
+      color: var(--text);
+    }
+
+    /* ── Etapas ───────────────────────────────────────────────── */
+
+    .stages {
+      display: grid;
+      gap: 1.25rem;
+    }
+
+    .stage {
+      display: grid;
+      grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+      gap: 2.5rem;
+      padding: 2.4rem;
+      align-items: start;
+    }
+
+    .stage-lead {
+      display: grid;
+      gap: 0.9rem;
+      align-content: start;
+    }
+
+    .stage-index {
+      font-family: var(--font-mono);
+      font-size: 0.74rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    .stage-lead h3 {
+      font-size: clamp(1.7rem, 3vw, 2.4rem);
+      line-height: 1.05;
+      letter-spacing: -0.035em;
+      margin: 0;
+    }
+
+    .stage-lead p {
+      margin: 0;
+      color: var(--text-soft);
+    }
+
+    .stage-days {
+      display: inline-flex;
+      align-items: baseline;
+      gap: 0.5rem;
+      margin-top: 0.4rem;
+      padding: 0.65rem 1rem;
+      border-radius: 999px;
+      width: fit-content;
+      background: rgba(255, 255, 255, 0.5);
+      border: 1px solid var(--line);
+    }
+
+    .stage-days b {
+      font-family: var(--font-mono);
+      font-size: 1.5rem;
+      line-height: 1;
+      letter-spacing: -0.03em;
+      background: var(--accent-gradient);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+
+    .stage-days span {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    /* Etapa 02 em fundo escuro, no mesmo tom de .capability-dark da landing */
+    .stage-dark {
+      background:
+        radial-gradient(circle at top right, rgba(244, 125, 32, 0.22), transparent 38%),
+        linear-gradient(160deg, #2a211b 0%, #1a1614 100%);
+      color: #fff7f1;
+      border-color: rgba(255, 255, 255, 0.08);
+    }
+
+    .stage-dark .stage-index,
+    .stage-dark .stage-lead p {
+      color: rgba(255, 247, 241, 0.76);
+    }
+
+    .stage-dark .stage-days {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.14);
+    }
+
+    .stage-dark .check-list li {
+      color: rgba(255, 247, 241, 0.9);
+      border-bottom-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .stage-dark .stage-note {
+      background: rgba(255, 255, 255, 0.07);
+      border-color: rgba(255, 255, 255, 0.12);
+      color: rgba(255, 247, 241, 0.82);
+    }
+
+    /* ── Checklists ───────────────────────────────────────────── */
+
+    .check-list {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0 2rem;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .check-list li {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 0.7rem;
+      align-items: start;
+      padding: 0.72rem 0;
+      border-bottom: 1px solid var(--line);
+      font-size: 0.96rem;
+      line-height: 1.4;
+    }
+
+    .check-list li::before {
+      content: "";
+      width: 1.15rem;
+      height: 1.15rem;
+      margin-top: 0.12rem;
+      border-radius: 50%;
+      background: var(--accent-gradient);
+      box-shadow: 0 6px 14px -8px rgba(229, 83, 34, 0.9);
+      /* checkmark recortado dentro do círculo laranja */
+      -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 1a11 11 0 1 0 0 22 11 11 0 0 0 0-22Zm5.3 8.1-6.4 6.4a1 1 0 0 1-1.4 0l-3-3a1 1 0 1 1 1.4-1.4l2.3 2.3 5.7-5.7a1 1 0 0 1 1.4 1.4Z' fill-rule='evenodd'/%3E%3C/svg%3E") center/contain no-repeat;
+      mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 1a11 11 0 1 0 0 22 11 11 0 0 0 0-22Zm5.3 8.1-6.4 6.4a1 1 0 0 1-1.4 0l-3-3a1 1 0 1 1 1.4-1.4l2.3 2.3 5.7-5.7a1 1 0 0 1 1.4 1.4Z' fill-rule='evenodd'/%3E%3C/svg%3E") center/contain no-repeat;
+    }
+
+    .stage-note {
+      grid-column: 1 / -1;
+      margin-top: 1.4rem;
+      padding: 0.95rem 1.2rem;
+      border-radius: 1rem;
+      background: rgba(255, 255, 255, 0.5);
+      border: 1px solid var(--line);
+      font-size: 0.92rem;
+      color: var(--text-soft);
+    }
+
+    .stage-note b {
+      color: var(--text);
+    }
+
+    .stage-dark .stage-note b {
+      color: #fff7f1;
+    }
+
+    /* ── Cronograma ───────────────────────────────────────────── */
+
+    .roadmap {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 0.9rem;
+    }
+
+    .milestone {
+      padding: 1.5rem 1.4rem;
+      display: grid;
+      gap: 0.6rem;
+      align-content: start;
+    }
+
+    .milestone small {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    .milestone strong {
+      font-size: 1.02rem;
+      line-height: 1.3;
+      letter-spacing: -0.02em;
+    }
+
+    .milestone p {
+      margin: 0;
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      line-height: 1.45;
+    }
+
+    .milestone-flag {
+      align-self: start;
+      padding: 0.3rem 0.6rem;
+      border-radius: 999px;
+      background: rgba(43, 159, 84, 0.1);
+      border: 1px solid rgba(43, 159, 84, 0.2);
+      font-family: var(--font-mono);
+      font-size: 0.66rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #1d7a3e;
+      width: fit-content;
+    }
+
+    /* ── Investimento ─────────────────────────────────────────── */
+
+    .invest-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+      gap: 1.25rem;
+    }
+
+    .price-panel {
+      padding: 2.6rem;
+      display: grid;
+      gap: 1.6rem;
+      align-content: start;
+      background: linear-gradient(180deg, rgba(255, 252, 248, 0.9), rgba(255, 244, 235, 0.72));
+    }
+
+    .price-value {
+      font-family: var(--font-display);
+      font-size: clamp(3.4rem, 7vw, 5.4rem);
+      line-height: 0.92;
+      letter-spacing: -0.055em;
+      background: var(--accent-gradient);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+
+    .price-value em {
+      font-style: normal;
+      font-size: 0.36em;
+      letter-spacing: -0.02em;
+      vertical-align: 0.42em;
+      margin-right: 0.22rem;
+    }
+
+    .price-caption {
+      margin: 0.5rem 0 0;
+      color: var(--text-soft);
+    }
+
+    .installments {
+      display: grid;
+      gap: 0.6rem;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .installments li {
+      display: grid;
+      grid-template-columns: 3.6rem 1fr auto;
+      gap: 1rem;
+      align-items: center;
+      padding: 0.85rem 1.1rem;
+      border-radius: 1rem;
+      background: rgba(255, 255, 255, 0.58);
+      border: 1px solid var(--line);
+    }
+
+    .installments b {
+      font-family: var(--font-mono);
+      font-size: 1.05rem;
+      letter-spacing: -0.02em;
+      color: var(--accent-strong);
+    }
+
+    .installments span {
+      font-size: 0.95rem;
+      color: var(--text-soft);
+    }
+
+    .installments i {
+      font-style: normal;
+      font-family: var(--font-mono);
+      font-size: 0.88rem;
+      color: var(--text);
+    }
+
+    .terms-panel {
+      padding: 2.2rem;
+      display: grid;
+      gap: 1.5rem;
+      align-content: start;
+    }
+
+    .terms-block h4 {
+      margin: 0 0 0.7rem;
+      font-family: var(--font-mono);
+      font-size: 0.74rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      font-weight: 400;
+    }
+
+    .terms-block ul {
+      display: grid;
+      gap: 0.55rem;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .terms-block li {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 0.6rem;
+      font-size: 0.92rem;
+      line-height: 1.45;
+      color: var(--text-soft);
+    }
+
+    .terms-block li::before {
+      content: "—";
+      color: var(--mist);
+    }
+
+    .maintenance {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1.2rem;
+      margin-top: 1.25rem;
+      padding: 1.6rem 2.2rem;
+    }
+
+    .maintenance div {
+      display: grid;
+      gap: 0.35rem;
+    }
+
+    .maintenance strong {
+      font-size: 1.1rem;
+      letter-spacing: -0.02em;
+    }
+
+    .maintenance p {
+      margin: 0;
+      font-size: 0.92rem;
+      color: var(--text-muted);
+      max-width: 52ch;
+    }
+
+    .maintenance-price {
+      font-family: var(--font-mono);
+      font-size: 1.5rem;
+      letter-spacing: -0.03em;
+      white-space: nowrap;
+      background: var(--accent-gradient);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+
+    /* ── Fechamento ───────────────────────────────────────────── */
+
+    .closing {
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
+      gap: 2.5rem;
+      align-items: center;
+      padding: 2.8rem;
+      background:
+        radial-gradient(circle at top right, rgba(244, 125, 32, 0.22), transparent 40%),
+        linear-gradient(160deg, #2a211b 0%, #1a1614 100%);
+      color: #fff7f1;
+      border-color: rgba(255, 255, 255, 0.08);
+    }
+
+    .closing h2 {
+      margin: 0 0 0.9rem;
+      font-size: clamp(1.8rem, 3.4vw, 2.7rem);
+      line-height: 1.06;
+      letter-spacing: -0.035em;
+    }
+
+    .closing p {
+      margin: 0;
+      color: rgba(255, 247, 241, 0.78);
+      max-width: 44ch;
+    }
+
+    .closing .eyebrow {
+      color: var(--orange-300);
+    }
+
+    .signature {
+      display: grid;
+      gap: 0.75rem;
+      justify-items: start;
+    }
+
+    .signature img {
+      width: 2.6rem;
+    }
+
+    .signature strong {
+      font-size: 1.15rem;
+      letter-spacing: -0.02em;
+    }
+
+    .signature span {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      color: rgba(255, 247, 241, 0.7);
+    }
+
+    .prop-foot {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 2rem 0 3.5rem;
+      font-family: var(--font-mono);
+      font-size: 0.74rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    /* ── Responsivo ───────────────────────────────────────────── */
+
+    @media (max-width: 960px) {
+      .stage,
+      .invest-grid,
+      .closing,
+      .reading {
+        grid-template-columns: 1fr;
+        gap: 1.8rem;
+      }
+
+      .roadmap {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 620px) {
+      .check-list,
+      .roadmap {
+        grid-template-columns: 1fr;
+      }
+
+      .stage,
+      .price-panel,
+      .closing {
+        padding: 1.8rem;
+      }
+    }
+  </style>
 </head>
 
 <body>
@@ -16,410 +551,270 @@
     <div class="ambient ambient-a"></div>
     <div class="ambient ambient-b"></div>
 
-    <nav class="nav">
-      <div class="container nav-inner">
-        <a href="#top" class="brand brand-mark" aria-label="Voltar ao topo">
-          <img src="assets/logo-gradient.png" alt="Marca R" />
-        </a>
-
-        <div class="nav-links">
-          <a href="#sobre">Sobre</a>
-          <a href="#trabalho">Trabalho</a>
-          <a href="#capacidades">Capacidades</a>
-          <a href="#contato">Contato</a>
-        </div>
-
-        <a href="#contato" class="btn btn-primary btn-nav">Iniciar projeto</a>
-      </div>
-    </nav>
-
     <main>
-      <header class="hero section" id="top">
-        <div class="container hero-grid">
-          <div class="hero-copy reveal">
-            <div class="eyebrow">Engenheiro · Estúdio independente</div>
-            <h1>
-              IA que <span>opera</span>. Software que não pesa no ar.
-            </h1>
-            <p class="lede">
-              Construo sistemas inteligentes, produtos web e automações com rigor de engenharia e leitura real de
-              operação.
-            </p>
-
-            <div class="hero-actions">
-              <a href="#trabalho" class="btn btn-primary">Ver trabalho</a>
-              <a href="#sobre" class="btn btn-secondary">Ler a trajetória</a>
-            </div>
-
-            <ul class="hero-notes" aria-label="Destaques profissionais">
-              <li>Produto, automação e IA no mesmo sistema</li>
-              <li>Decisão técnica com impacto de negócio</li>
-              <li>Base industrial para software confiável</li>
-            </ul>
-          </div>
-
-          <div class="hero-visual reveal reveal-delay-2">
-            <div class="portrait-card">
-              <div class="portrait-glow"></div>
-              <img class="portrait" src="assets/profile.jpg" alt="Retrato de Richard Vieira" />
-              <div class="portrait-badge portrait-badge-top">
-                <img src="assets/logo-carbon.png" alt="" aria-hidden="true" />
-                <span>Disponível para um projeto por ciclo</span>
-              </div>
-              <div class="portrait-badge portrait-badge-bottom">
-                <span class="status-dot"></span>
-                <span>Pecém · CE · Brasil</span>
-              </div>
-            </div>
-
-            <div class="hero-mark">
-              <img src="assets/logo-gradient.png" alt="" aria-hidden="true" />
-            </div>
-
-            <div class="hero-arrow">
-              <img src="assets/arrow-gradient.png" alt="" aria-hidden="true" />
-            </div>
-          </div>
-        </div>
-
+      <!-- ─── Cabeçalho ─────────────────────────────────────── -->
+      <header class="section prop-head">
         <div class="container">
-          <div class="proof-strip reveal reveal-delay-3">
+          <img class="prop-mark" src="assets/logo-gradient.png" alt="Marca R" />
+
+          <div class="eyebrow">Proposta de desenvolvimento · 30.07.2026</div>
+          <h1>Uma plataforma clínica em <span>duas etapas</span>.</h1>
+
+          <p class="prop-lede">
+            Do formulário que o paciente responde em casa ao exame que vira gráfico de evolução —
+            um sistema só, construído sob medida.
+          </p>
+
+          <div class="prop-meta">
+            <!-- TROCAR: nome da médica / clínica -->
+            <span class="tag">Para · Dra Rayanne</span>
+            <span class="tag">Proposta válida por 7 dias</span>
+            <span class="tag tag-live">Início imediato</span>
+          </div>
+
+          <div class="proof-strip">
             <div class="proof-item">
-              <span class="proof-value">5 anos</span>
-              <span class="proof-label">com IA aplicada</span>
+              <span class="proof-value">45</span>
+              <span class="proof-label">dias corridos</span>
             </div>
             <div class="proof-item">
-              <span class="proof-value">R$ 600 mi+</span>
-              <span class="proof-label">em mídia coordenada</span>
+              <span class="proof-value">2</span>
+              <span class="proof-label">etapas com entrega própria</span>
             </div>
             <div class="proof-item">
-              <span class="proof-value">300+</span>
-              <span class="proof-label">ativos industriais coordenados</span>
+              <span class="proof-value">R$ 5.000</span>
+              <span class="proof-label">investimento total</span>
             </div>
             <div class="proof-item">
-              <span class="proof-value">2021</span>
-              <span class="proof-label">primeira IA própria</span>
+              <span class="proof-value">100%</span>
+              <span class="proof-label">personalizado</span>
             </div>
           </div>
         </div>
       </header>
 
-      <section class="section" id="sobre">
+      <!-- ─── Etapas ────────────────────────────────────────── -->
+      <section class="section">
         <div class="container">
-          <div class="section-head">
-            <div>
-              <div class="eyebrow">Sobre</div>
-              <h2>Do chão de fábrica ao software que respira.</h2>
-            </div>
-            <p class="section-intro">
-              Penso produto com mentalidade de operação: clareza, ritmo e menos tolerância a improviso.
-            </p>
+          <div class="prop-title">
+            <div class="eyebrow">Escopo</div>
+            <h2>O que é construído, item por item.</h2>
           </div>
 
-          <div class="about-grid">
-            <article class="panel panel-large about-story">
-              <p>
-                Sou <strong>engenheiro de controle e automação</strong>. Antes do hype, já testava IA própria em uma
-                casa inteligente que aprendia rotina e tomava decisão.
-              </p>
-              <p>
-                Depois vieram <strong>R$ 600 milhões em ads coordenados</strong> e a rotina de
-                <strong>paradas industriais na ArcelorMittal Pecém</strong>. Hoje junto essas duas escolas para
-                construir software útil, elegante e sólido.
-              </p>
-            </article>
-
-            <aside class="about-side">
-              <div class="panel stat-panel">
-                <span class="stat-value">2021</span>
-                <strong>Primeira IA própria</strong>
-                <p>Aprendizado de comportamento antes do boom dos LLMs.</p>
-              </div>
-              <div class="panel stat-panel">
-                <span class="stat-value">R$ 600M+</span>
-                <strong>Em ads coordenados</strong>
-                <p>Escala, otimização e decisão com impacto financeiro real.</p>
-              </div>
-              <div class="panel stat-panel">
-                <span class="stat-value">24/7</span>
-                <strong>Indústria + produto</strong>
-                <p>Disciplina operacional de dia, software e experimentação no resto.</p>
-              </div>
-            </aside>
-          </div>
-        </div>
-      </section>
-
-      <section class="section" id="trabalho">
-        <div class="container">
-          <div class="section-head">
-            <div>
-              <div class="eyebrow">Trabalho em destaque</div>
-              <h2>Software que volta a ser usado amanhã.</h2>
-            </div>
-            <p class="section-intro">
-              Não basta parecer bom na demo. O produto precisa continuar útil quando ninguém está olhando.
-            </p>
-          </div>
-
-          <article class="panel feature-case">
-            <div class="case-copy">
-              <div class="tag-row">
-                <span class="tag tag-live">Em produção</span>
-                <span class="tag">SaaS · Saúde</span>
-                <span class="tag">IA integrada</span>
-              </div>
-
-              <p class="case-role">Projeto solo · Produto, engenharia e design</p>
-              <h3>Equivalis</h3>
-              <p class="case-description">
-                Nutrição inteligente com presença diária: adesão, check-ins, receitas, leitura de cardápio e IA
-                contextual em uma arquitetura clínica segura.
-              </p>
-
-              <ul class="feature-list">
-                <li>Mabi IA contextual</li>
-                <li>Chef IA dentro dos macros</li>
-                <li>Check-in diário</li>
-                <li>Cardápio IA</li>
-                <li>Race Planner</li>
-                <li>Hub e chat organizados</li>
-              </ul>
-
-              <a href="https://equivalis.vercel.app" target="_blank" rel="noopener" class="case-link">
-                Visitar equivalis.vercel.app
-                <img src="assets/arrow-orange.png" alt="" aria-hidden="true" />
-              </a>
-            </div>
-
-            <div class="browser-shot">
-              <div class="browser-bar">
-                <span></span>
-                <span></span>
-                <span></span>
-                <div class="browser-url">equivalis.vercel.app</div>
-              </div>
-
-              <div class="browser-body">
-                <div class="eq-shell">
-                  <div class="eq-topbar">
-                    <div class="eq-brand">
-                      <div class="eq-brand-mark">E</div>
-                      <span>Equivalis</span>
-                    </div>
-                    <div class="eq-nav">
-                      <span>Para nutris</span>
-                      <span>Para pacientes</span>
-                      <span>Preços</span>
-                    </div>
-                    <div class="eq-cta">Entrar</div>
-                  </div>
-
-                  <div class="eq-main">
-                    <div class="eq-copy">
-                      <div class="eq-eyebrow">Software de nutrição inteligente</div>
-                      <h4>Seu paciente segue a dieta. Ou some depois da consulta?</h4>
-                      <p>
-                        IA e acompanhamento contínuo para adesão que não depende de boa vontade.
-                      </p>
-                      <div class="eq-actions">
-                        <span class="eq-button eq-button-primary">Começar grátis</span>
-                        <span class="eq-button eq-button-secondary">Sou paciente</span>
-                      </div>
-                    </div>
-
-                    <div class="eq-chat">
-                      <div class="eq-chat-head">
-                        <div class="eq-chat-brand">
-                          <span class="eq-chat-mark">M</span>
-                          <strong>Mabi IA</strong>
-                        </div>
-                        <span class="eq-online">Conectado</span>
-                      </div>
-                      <div class="eq-bubble eq-bubble-user">Comi um sanduíche no jantar, posso?</div>
-                      <div class="eq-bubble">Pode. Use pão integral e troque o queijo amarelo por branco.</div>
-                      <div class="eq-bubble eq-bubble-user">E sobremesa?</div>
-                      <div class="eq-input">
-                        <span>Pergunte algo...</span>
-                        <span class="eq-send">→</span>
-                      </div>
-                    </div>
-                  </div>
+          <div class="stages">
+            <!-- Etapa 01 -->
+            <article class="panel stage">
+              <div class="stage-lead">
+                <span class="stage-index">Etapa 01 · Fundação</span>
+                <h3>Formulários e painel de acompanhamento</h3>
+                <p>
+                  O sistema onde os questionários nascem, são enviados e viram informação organizada
+                  por paciente.
+                </p>
+                <div class="stage-days">
+                  <b>20</b>
+                  <span>dias</span>
                 </div>
               </div>
-            </div>
-          </article>
 
-          <div class="teaser-grid">
-            <div class="panel teaser-card">
               <div>
-                <div class="eyebrow">Em construção</div>
-                <h3>Mais projetos chegando</h3>
-                <p>IA aplicada, automações internas e protótipos em validação.</p>
-              </div>
-              <img src="assets/arrow-gradient.png" alt="" aria-hidden="true" />
-            </div>
+                <ul class="check-list">
+                  <li>Painel administrativo com login</li>
+                  <li>Cadastro e gestão de pacientes</li>
+                  <li>Construtor de formulários próprio</li>
+                  <li>Edição e duplicação de formulários</li>
+                  <li>Motor de scores por seção</li>
+                  <li>Roda da Vida da Menopausa</li>
+                  <li>Link geral compartilhável</li>
+                  <li>Link individual por paciente</li>
+                  <li>Salvamento automático a cada etapa</li>
+                  <li>Copiar resumo e respostas completas</li>
+                </ul>
 
-            <div class="panel teaser-card teaser-card-cta">
+                <div class="stage-note">
+                  <b>Entrega:</b> sistema no ar, em produção, pronto para receber pacientes reais —
+                  não um protótipo.
+                </div>
+              </div>
+            </article>
+
+            <!-- Etapa 02 -->
+            <article class="panel stage stage-dark">
+              <div class="stage-lead">
+                <span class="stage-index">Etapa 02 · Inteligência</span>
+                <h3>Leitor de exames com IA e evolução clínica</h3>
+                <p>
+                  O exame entra como arquivo e sai como gráfico, tabela e relatório — sem digitação
+                  manual de valores.
+                </p>
+                <div class="stage-days">
+                  <b>25</b>
+                  <span>dias</span>
+                </div>
+              </div>
+
               <div>
-                <div class="eyebrow">Para clientes</div>
-                <h3>Tem uma ideia parada?</h3>
-                <p>Escolho poucos projetos por ciclo. Primeiro a leitura, depois o contrato.</p>
+                <ul class="check-list">
+                  <li>Upload de exames em PDF ou foto</li>
+                  <li>Extração dos parâmetros por IA</li>
+                  <li>Conferência humana antes de salvar</li>
+                  <li>Faixas de referência por parâmetro</li>
+                  <li>Histórico completo por analito</li>
+                  <li>Gráficos de evolução no tempo</li>
+                  <li>Tabela comparativa entre coletas</li>
+                  <li>Relatório final gerado em PDF</li>
+                </ul>
+
+                <div class="stage-note">
+                  <b>Segurança clínica:</b> nenhum valor lido pela IA entra no histórico sem passar
+                  por uma tela de conferência. A leitura acelera o trabalho — quem decide continua
+                  sendo você.
+                </div>
               </div>
-              <a href="#contato" class="text-link">Falar comigo</a>
-            </div>
+            </article>
           </div>
         </div>
       </section>
 
-      <section class="section section-tight" id="capacidades">
+      <!-- ─── Cronograma ────────────────────────────────────── -->
+      <section class="section">
         <div class="container">
-          <div class="section-head">
+          <div class="prop-title">
+            <div class="eyebrow">Cronograma</div>
+            <h2>45 dias, com entrega no meio do caminho.</h2>
+          </div>
+
+          <div class="roadmap">
+            <article class="panel milestone">
+              <small>Dia 1 — 5</small>
+              <strong>ID Visual e Fundação</strong>
+              <p>Layout, Banco de dados, autenticação e estrutura do painel.</p>
+            </article>
+
+            <article class="panel milestone">
+              <small>Dia 6 — 12</small>
+              <strong>Construtor</strong>
+              <p>Criação e edição de formulários, cadastro de pacientes, links.</p>
+            </article>
+
+            <article class="panel milestone">
+              <small>Dia 13 — 20</small>
+              <strong>Scores e roda</strong>
+              <p>Pontuação por seção, Roda da Vida e exportação de respostas.</p>
+              <span class="milestone-flag">Entrega 01</span>
+            </article>
+
+            <article class="panel milestone">
+              <small>Dia 21 — 32</small>
+              <strong>Leitura por IA</strong>
+              <p>Upload, extração de parâmetros e tela de conferência.</p>
+            </article>
+
+            <article class="panel milestone">
+              <small>Dia 33 — 45</small>
+              <strong>Evolução</strong>
+              <p>Gráficos, tabela comparativa e relatório em PDF.</p>
+              <span class="milestone-flag">Entrega final</span>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─── Investimento ──────────────────────────────────── -->
+      <section class="section">
+        <div class="container">
+          <div class="prop-title">
+            <div class="eyebrow">Investimento</div>
+            <h2>Valor fechado, sem surpresa no meio.</h2>
+          </div>
+
+          <div class="invest-grid">
+            <div class="panel price-panel">
+              <div>
+                <div class="price-value"><em>R$</em>5.000</div>
+                <p class="price-caption">
+                  Pelas duas etapas, do primeiro formulário ao relatório de evolução.
+                </p>
+              </div>
+
+              <ul class="installments">
+                <li>
+                  <b>30%</b>
+                  <span>Na assinatura, para início dos trabalhos</span>
+                  <i>R$ 1.500</i>
+                </li>
+                <li>
+                  <b>40%</b>
+                  <span>Na entrega da Etapa 01, com o sistema no ar</span>
+                  <i>R$ 2.000</i>
+                </li>
+                <li>
+                  <b>30%</b>
+                  <span>Na entrega final, com tudo validado</span>
+                  <i>R$ 1.500</i>
+                </li>
+              </ul>
+            </div>
+
+            <div class="panel terms-panel">
+              <div class="terms-block">
+                <h4>Incluso</h4>
+                <ul>
+                  <li>Desenvolvimento completo das duas etapas</li>
+                  <li>Publicação e configuração do ambiente</li>
+                  <li>Treinamento de uso ao final de cada etapa</li>
+                  <li>30 dias de correção de falhas após a entrega</li>
+                </ul>
+              </div>
+
+              <div class="terms-block">
+                <h4>Não incluso</h4>
+                <ul>
+                  <li>Custo de Hospedagem, banco de dados e créditos de IA ficam na conta da Dra.</li>
+                  <li>Funcionalidades fora da lista acima entram como orçamento à parte</li>
+                  <li>Integração com sistemas de terceiros não previstos aqui</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel maintenance">
             <div>
-              <div class="eyebrow">Capacidades</div>
-              <h2>Quatro frentes, uma mesma disciplina.</h2>
-            </div>
-            <p class="section-intro">
-              Menos operação manual. Mais sistema, clareza e margem para decisão humana.
-            </p>
-          </div>
-
-          <div class="cap-grid">
-            <article class="panel capability capability-highlight">
-              <span class="cap-index">01 · Núcleo</span>
-              <h3>Sistemas com IA, do conceito ao deploy.</h3>
-              <p>Agentes, RAG, automações com LLM e integração com o que já existe.</p>
-              <div class="chip-row">
-                <span>OpenAI</span>
-                <span>Anthropic</span>
-                <span>Vector DBs</span>
-                <span>LangGraph</span>
-                <span>n8n</span>
-              </div>
-            </article>
-
-            <article class="panel capability capability-dark">
-              <span class="cap-index">02 · Produto</span>
-              <h3>Web apps que sobrevivem à primeira semana.</h3>
-              <p>Aplicações completas com fundamentos sólidos, sem espuma de framework.</p>
-              <div class="chip-row">
-                <span>Next.js</span>
-                <span>Supabase</span>
-                <span>PostgreSQL</span>
-                <span>TypeScript</span>
-                <span>Tailwind</span>
-              </div>
-            </article>
-
-            <article class="panel capability">
-              <span class="cap-index">03 · Automação</span>
-              <h3>Processos que se cuidam sozinhos.</h3>
-              <p>Pipelines e rotinas que tiram repetição da frente da equipe.</p>
-            </article>
-
-            <article class="panel capability">
-              <span class="cap-index">04 · Tráfego & dados</span>
-              <h3>Decisão baseada no número certo.</h3>
-              <p>Mídia, dados e desempenho para produto, aquisição e retenção.</p>
-            </article>
-
-            <article class="panel capability">
-              <span class="cap-index">05 · Indústria</span>
-              <h3>Engenharia onde a parada é real.</h3>
-              <p>Cronograma, criticidade e risco traduzidos para software que aguenta operação.</p>
-            </article>
-          </div>
-        </div>
-      </section>
-
-      <section class="section" id="processo">
-        <div class="container">
-          <div class="section-head">
-            <div>
-              <div class="eyebrow">Como trabalho</div>
-              <h2>Quatro passos. Sem teatro.</h2>
-            </div>
-            <p class="section-intro">
-              Escopo claro, entregas semanais e o mínimo possível de ruído.
-            </p>
-          </div>
-
-          <div class="timeline">
-            <article class="panel timeline-card">
-              <span class="timeline-step">01</span>
-              <small>Semana 1</small>
-              <h3>Conversa & descoberta</h3>
-              <p>Problema primeiro. Depois escopo, prazo e valor por escrito.</p>
-            </article>
-
-            <article class="panel timeline-card">
-              <span class="timeline-step">02</span>
-              <small>Semana 2–3</small>
-              <h3>Protótipo navegável</h3>
-              <p>Antes do back-end, um protótipo clicável. Errar aqui custa menos.</p>
-            </article>
-
-            <article class="panel timeline-card">
-              <span class="timeline-step">03</span>
-              <small>Semana 3+</small>
-              <h3>Construção iterativa</h3>
-              <p>Demos curtas para ajustar cedo e preservar ritmo.</p>
-            </article>
-
-            <article class="panel timeline-card">
-              <span class="timeline-step">04</span>
-              <small>Pós-deploy</small>
-              <h3>Operação tranquila</h3>
-              <p>Refino, monitoramento e documentação para o sistema seguir legível.</p>
-            </article>
-          </div>
-        </div>
-      </section>
-
-      <section class="section" id="contato">
-        <div class="container">
-          <div class="contact-panel">
-            <div class="contact-copy">
-              <div class="eyebrow">Próximo passo</div>
-              <h2>Se isso cabe num sistema, vale conversar.</h2>
+              <strong>Consultoria mensal — opcional</strong>
               <p>
-                Processo manual, ideia parada, IA mal encaixada. Eu respondo com uma leitura honesta do que faz sentido
-                construir.
+                Monitoramento, atualizações de segurança, suporte prioritário e pequenos ajustes de
+                uso ou correções de bugs pontuais. Contratada só depois da entrega final, se fizer sentido.
               </p>
             </div>
+            <span class="maintenance-price">R$ 490/mês</span>
+          </div>
+        </div>
+      </section>
 
-            <div class="contact-actions">
-              <a href="mailto:contato@r.studio" class="contact-link">
-                <span class="contact-label">Email</span>
-                <strong>contato@r.studio</strong>
-              </a>
-              <div class="contact-link contact-link-static">
-                <span class="contact-label">Escopo ideal</span>
-                <strong>IA aplicada, automação e software sob medida</strong>
-              </div>
-              <div class="contact-link contact-link-static">
-                <span class="contact-label">Retorno</span>
-                <strong>até 48h, sem rodeio</strong>
-              </div>
+      <!-- ─── Fechamento ────────────────────────────────────── -->
+      <section class="section">
+        <div class="container">
+          <div class="panel closing">
+            <div>
+              <div class="eyebrow">Próximo passo</div>
+              <h2>Aprovando a proposta, começamos na mesma semana.</h2>
+              
             </div>
+
+            <div class="signature">
+              <img src="assets/logo-gradient.png" alt="" aria-hidden="true" />
+              <strong>Richard Vieira</strong>
+              <span>Desenvolvendo sistemas inteligentes</span>
+              </div>
+          </div>
+
+          <div class="prop-foot">
+            <span>Proposta válida até 06.08.2026</span>
+            <span>RV · 2026</span>
           </div>
         </div>
       </section>
     </main>
-
-    <footer class="footer">
-      <div class="container footer-inner">
-        <a href="#top" class="brand brand-mark footer-brand">
-          <img src="assets/logo-gradient.png" alt="Marca R" />
-        </a>
-
-        <div class="footer-meta">
-          <span>Pecém · CE · Brasil</span>
-          <span>2026</span>
-          <span>Construído à mão, com ar.</span>
-        </div>
-      </div>
-    </footer>
   </div>
 </body>
 
