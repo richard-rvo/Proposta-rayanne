@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+
+# Peça comercial — fora de buscadores.
+Disallow: /proposta.html
+Disallow: /proposta.png

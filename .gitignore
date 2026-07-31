@@ -1,0 +1,10 @@
+# macOS
+.DS_Store
+
+# Editor / ferramentas locais
+.vscode/
+.claude/
+
+# Documentos internos: notas de escopo, precificação e specs.
+# NÃO publicar — o repositório é público.
+docs/
