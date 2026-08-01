@@ -59,14 +59,15 @@
   --s-120: 120px;
 
   --page: 1280px;
-  --gutter: clamp(1.5rem, 5vw, 3rem);
-  --section: clamp(5.5rem, 11vw, 9rem);
+  --gutter: clamp(1.5rem, 5vw, 3.5rem);
+  --section: clamp(6.5rem, 13vw, 11rem);
 
   --r: 24px;
   --r-full: 9999px;
 
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-io: cubic-bezier(0.65, 0, 0.35, 1);
+  --loader-progress: 0;
 }
 
 /* ---------- 2. Reset & base ---------- */
@@ -108,7 +109,143 @@ button { font: inherit; color: inherit; background: none; border: 0; }
   border-radius: 2px;
 }
 
-/* ---------- 3. Atmosphere ---------- */
+/* ---------- 3. Loader ---------- */
+
+html.is-loading,
+html.is-loading body {
+  overflow: hidden;
+}
+
+.loader {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: none;
+  overflow: hidden;
+  background: #000;
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.7s var(--ease), visibility 0s linear 0.7s;
+}
+
+.js .loader { display: grid; }
+
+.js:not(.is-loading) .loader {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.loader::before {
+  content: '';
+  position: absolute;
+  inset: 18% 24%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(240, 129, 19, 0.13), transparent 66%);
+  filter: blur(64px);
+  transform: scale(var(--loader-glow-scale, 0.72));
+  opacity: var(--loader-glow-opacity, 0.28);
+  transition: transform 0.5s var(--ease), opacity 0.5s var(--ease);
+}
+
+.loader__frame {
+  position: relative;
+  width: 100%;
+  min-height: 100%;
+  padding: clamp(1.5rem, 5vw, 3.5rem);
+  display: grid;
+  grid-template-rows: 1fr auto auto;
+  gap: 1.15rem;
+}
+
+.loader__brand {
+  position: relative;
+  place-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 1rem;
+  animation: loader-breathe 1.8s var(--ease-io) infinite;
+}
+
+.loader__brand::before,
+.loader__brand::after {
+  content: '';
+  position: absolute;
+  inset: 50% auto auto 50%;
+  z-index: -1;
+  background: linear-gradient(90deg, transparent, var(--rule-strong), transparent);
+  opacity: 0.7;
+}
+
+.loader__brand::before {
+  width: min(52vw, 32rem);
+  height: 1px;
+  transform: translate(-50%, -50%);
+}
+
+.loader__brand::after {
+  width: 1px;
+  height: min(36vh, 18rem);
+  background: linear-gradient(transparent, var(--rule-strong), transparent);
+  transform: translate(-50%, -50%);
+}
+
+.loader__mark {
+  width: clamp(2.75rem, 5vw, 3.375rem);
+  filter: drop-shadow(0 0 24px rgba(240, 129, 19, 0.38));
+}
+
+.loader__word {
+  font-size: clamp(2.5rem, 6vw, 4.5rem);
+  font-weight: 400;
+  line-height: 0.8;
+  letter-spacing: -0.06em;
+}
+
+.loader__readout {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.loader__label { color: var(--dim); }
+
+.loader__value {
+  color: var(--bone);
+  font-size: clamp(1.25rem, 2.5vw, 2rem);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.04em;
+  line-height: 0.8;
+}
+
+.loader__track {
+  position: relative;
+  height: 1px;
+  overflow: hidden;
+  background: var(--rule);
+}
+
+.loader__fill {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, var(--ember-hi), var(--ember-lo), #fff);
+  box-shadow: 0 0 16px rgba(240, 129, 19, 0.7);
+  transform: scaleX(var(--loader-progress));
+  transform-origin: left;
+  transition: transform 0.55s var(--ease);
+}
+
+@keyframes loader-breathe {
+  0%, 100% { opacity: 0.72; transform: scale(0.985); }
+  50% { opacity: 1; transform: scale(1); }
+}
+
+/* ---------- 4. Atmosphere ---------- */
 
 .atmosphere {
   position: fixed;
@@ -130,7 +267,9 @@ button { font: inherit; color: inherit; background: none; border: 0; }
   content: '';
   position: absolute;
   inset: 0;
-  background: radial-gradient(ellipse 120% 90% at 50% 45%, transparent 30%, rgba(0, 0, 0, 0.55) 78%, #000 100%);
+  background:
+    radial-gradient(ellipse 48% 58% at 76% 45%, rgba(240, 129, 19, 0.035), transparent 70%),
+    radial-gradient(ellipse 120% 90% at 58% 44%, transparent 28%, rgba(0, 0, 0, 0.58) 80%, #000 100%);
 }
 
 /* Film grain — keeps large black fields from banding, adds tooth */
@@ -463,17 +602,28 @@ main[id] { scroll-margin-top: clamp(5.5rem, 11vh, 7.5rem); }
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding-top: clamp(7rem, 14vh, 10rem);
+  padding-top: clamp(8rem, 16vh, 11rem);
   padding-bottom: var(--s-60);
 }
 
 .hero__grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: var(--s-36);
+  align-items: center;
+  gap: clamp(3rem, 8vw, 8rem);
 }
 
-.hero__head { max-width: 15ch; }
+.hero__copy {
+  position: relative;
+  z-index: 2;
+  min-width: 0;
+}
+
+.hero__head {
+  max-width: 14ch;
+  font-size: clamp(3.25rem, 5.85vw, 5.3rem);
+  margin-top: clamp(1.25rem, 2.6vw, 2rem);
+}
 
 .display .line {
   display: block;
@@ -487,6 +637,7 @@ main[id] { scroll-margin-top: clamp(5.5rem, 11vh, 7.5rem); }
 
 .hero__lede {
   margin-top: clamp(1.5rem, 3vw, 2.25rem);
+  max-width: 44ch;
 }
 
 .hero__actions {
@@ -495,6 +646,24 @@ main[id] { scroll-margin-top: clamp(5.5rem, 11vh, 7.5rem); }
   gap: clamp(1.25rem, 3vw, 2.5rem);
   flex-wrap: wrap;
   margin-top: clamp(2rem, 4vw, 3rem);
+}
+
+/* The canvas owns the sculpture. This column is its negative-space plinth and
+   keeps the object out of the copy. */
+.hero__visual {
+  position: relative;
+  min-height: clamp(25rem, 52vw, 42rem);
+  isolation: isolate;
+}
+
+.hero__visual::before {
+  content: '';
+  position: absolute;
+  inset: 11% 2% 10%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(240, 129, 19, 0.105), transparent 68%);
+  filter: blur(54px);
+  opacity: 0.72;
 }
 
 /* Instrumentation strip — reads like a machine readout, grounds the poetry */
@@ -587,8 +756,16 @@ main[id] { scroll-margin-top: clamp(5.5rem, 11vh, 7.5rem); }
 }
 
 @media (min-width: 900px) {
-  .hero__head { max-width: 13ch; }
-  .hero__lede { max-width: 40ch; }
+  .hero__grid { grid-template-columns: minmax(0, 0.92fr) minmax(20rem, 1.08fr); }
+}
+
+@media (max-width: 899px) {
+  .hero { min-height: auto; }
+  .hero__grid { gap: 1rem; }
+  .hero__visual {
+    min-height: clamp(36rem, 156vw, 40rem);
+    margin-top: -1rem;
+  }
 }
 
 /* ---------- 9. Ticker ---------- */
@@ -678,7 +855,7 @@ main[id] { scroll-margin-top: clamp(5.5rem, 11vh, 7.5rem); }
   margin-top: 0.2rem;
 }
 
-/* ---------- 10b. Who ---------- */
+/* ---------- 10a. Who ---------- */
 
 .who {
   display: grid;
@@ -873,23 +1050,6 @@ main[id] { scroll-margin-top: clamp(5.5rem, 11vh, 7.5rem); }
   isolation: isolate;
 }
 
-/* The ember bloom behind the artifact — light spilling from the screen */
-.work__item::before {
-  content: '';
-  position: absolute;
-  inset: 8% 6% 30% 6%;
-  z-index: -1;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(240, 129, 19, 0.28), transparent 68%);
-  filter: blur(60px);
-  opacity: 0;
-  transform: translateZ(0);
-  transition: opacity 0.8s var(--ease);
-  pointer-events: none;
-}
-
-.work__item:hover::before { opacity: 1; }
-
 .work__shot {
   width: 100%;
   aspect-ratio: 16 / 10;
@@ -932,23 +1092,8 @@ main[id] { scroll-margin-top: clamp(5.5rem, 11vh, 7.5rem); }
 
 .work__card:hover .work__stage--free .work__shot {
   transform: scale(1.03);
-  filter: saturate(1) brightness(1) drop-shadow(0 46px 80px rgba(233, 77, 29, 0.28));
+  filter: saturate(1) brightness(1) drop-shadow(0 46px 80px rgba(0, 0, 0, 0.88));
 }
-
-/* Specular sheen — the artifact catches light as it tilts */
-.work__glare {
-  position: absolute;
-  inset: 0;
-  z-index: 3;
-  border-radius: var(--r);
-  background: radial-gradient(500px circle at var(--mx, 50%) var(--my, 50%), rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.03) 38%, transparent 62%);
-  opacity: 0;
-  transition: opacity 0.6s var(--ease);
-  pointer-events: none;
-  mix-blend-mode: overlay;
-}
-
-.work__card:hover .work__glare { opacity: 1; }
 
 /* Hairline edge so the artifact reads as an object, not a hole */
 .work__stage::after {
@@ -972,27 +1117,33 @@ main[id] { scroll-margin-top: clamp(5.5rem, 11vh, 7.5rem); }
   bottom: var(--s-24);
   display: inline-flex;
   align-items: center;
-  gap: 0.6rem;
-  padding: 0.7rem 1.15rem;
+  justify-content: center;
+  min-width: 10.5rem;
+  gap: 0.9rem;
+  padding: 1.1rem 1.75rem;
   border-radius: var(--r-full);
   background: rgba(0, 0, 0, 0.55);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   border: 1px solid rgba(255, 255, 255, 0.14);
   font-family: var(--mono);
-  font-size: 0.6875rem;
-  letter-spacing: 0.12em;
+  font-size: 0.9375rem;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--bone);
-  opacity: 0;
-  transform: translateY(14px);
+  opacity: 1;
+  transform: translateZ(24px);
   transition: opacity 0.55s var(--ease), transform 0.55s var(--ease);
   transform-style: preserve-3d;
 }
 
+.work__visit svg {
+  width: 17px;
+  height: 17px;
+}
+
 .work__card:hover .work__visit {
-  opacity: 1;
-  transform: translateY(0) translateZ(45px);
+  transform: translateZ(45px);
 }
 
 /* Meta floats above the artifact plane on tilt */
@@ -1031,7 +1182,8 @@ main[id] { scroll-margin-top: clamp(5.5rem, 11vh, 7.5rem); }
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--ash);
-  white-space: nowrap;
+  max-width: 13rem;
+  text-align: right;
   transition: color 0.5s var(--ease);
 }
 
@@ -1047,6 +1199,12 @@ main[id] { scroll-margin-top: clamp(5.5rem, 11vh, 7.5rem); }
   padding-top: clamp(2.5rem, 5vw, 3.5rem);
 }
 
+.stat {
+  display: flex;
+  flex-direction: column;
+  min-height: 15rem;
+}
+
 .stat__n {
   font-size: clamp(2.75rem, 5.5vw, 4.25rem);
   font-weight: 400;
@@ -1056,50 +1214,143 @@ main[id] { scroll-margin-top: clamp(5.5rem, 11vh, 7.5rem); }
 }
 
 .stat__k {
-  font-family: var(--mono);
-  font-size: 0.6875rem;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
+  font-size: 0.9375rem;
+  font-weight: 200;
+  line-height: 1.55;
+  letter-spacing: -0.005em;
   color: var(--ash);
-  margin-top: 1rem;
+  margin-top: 0.65rem;
   display: block;
-  max-width: 22ch;
+  max-width: 30ch;
 }
 
 /* ---------- 14. Closing ---------- */
 
 .close {
   position: relative;
-  text-align: center;
-  padding-block: clamp(7rem, 16vw, 13rem);
+  isolation: isolate;
+  min-height: 92svh;
+  display: flex;
+  align-items: center;
+  text-align: left;
+  padding-block: clamp(7rem, 13vw, 11rem);
+}
+
+.close::before {
+  content: '';
+  position: absolute;
+  z-index: 0;
+  inset: 4% 2%;
+  pointer-events: none;
+  background: radial-gradient(ellipse 42% 68% at 76% 50%, rgba(240, 129, 19, 0.1), transparent 72%);
+}
+
+.close__grid {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 0.92fr) minmax(20rem, 1.08fr);
+  align-items: center;
+  gap: clamp(3rem, 8vw, 8rem);
+}
+
+.close__copy {
+  position: relative;
+  z-index: 2;
+  min-width: 0;
 }
 
 .close__head {
-  max-width: 16ch;
-  margin-inline: auto;
+  max-width: 12ch;
+  margin-top: clamp(1.25rem, 2.6vw, 2rem);
+  text-shadow: 0 0 14px #000, 0 0 38px #000, 0 0 76px rgba(0, 0, 0, 0.95);
 }
 
 .close__lede {
-  margin: clamp(1.75rem, 3.5vw, 2.5rem) auto 0;
-  text-align: center;
-  max-width: 48ch;
+  margin-top: clamp(1.75rem, 3.5vw, 2.5rem);
+  text-align: left;
+  max-width: 43ch;
 }
 
-/* The logo watermark is at its densest right here, so the closing copy gets a
-   deeper bed than the page default. Layered black blurs read as nothing on the
-   void while still carving the text out of the particle field. */
+/* The closing copy stays crisp while the residual particle field fades behind
+   the deterministic brand mark in the right-hand column. */
 .close .label,
 .close__lede {
-  text-shadow: 0 0 10px #000, 0 0 26px #000, 0 0 46px rgba(0, 0, 0, 0.92);
+  text-shadow: 0 0 12px #000, 0 0 34px #000, 0 0 72px #000;
 }
 
 .close__actions {
   display: flex;
-  justify-content: center;
+  justify-content: flex-start;
   align-items: center;
   flex-wrap: wrap;
   gap: clamp(1.25rem, 3vw, 2.5rem);
   margin-top: clamp(2.5rem, 5vw, 3.5rem);
+}
+
+.close__visual {
+  position: relative;
+  min-height: clamp(26rem, 48vw, 40rem);
+  display: grid;
+  place-items: center;
+  isolation: isolate;
+}
+
+.close__visual::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  width: 86%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(240, 129, 19, 0.2), rgba(233, 77, 29, 0.055) 46%, transparent 70%);
+  filter: blur(48px);
+}
+
+.close__mark-fallback {
+  display: none;
+  width: min(100%, clamp(19rem, 35vw, 31rem));
+  height: auto;
+  filter: drop-shadow(0 0 42px rgba(240, 129, 19, 0.16));
+}
+
+.no-forge .close__mark-fallback,
+.no-logo-sculpture .close__mark-fallback {
+  display: block;
+}
+
+@media (max-width: 899px) {
+  .close {
+    min-height: auto;
+    padding-bottom: clamp(5rem, 14vw, 8rem);
+  }
+
+  .close__grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: clamp(3.5rem, 10vw, 5rem);
+  }
+
+  .close__visual {
+    min-height: clamp(21rem, 86vw, 34rem);
+  }
+
+  .close__mark-fallback {
+    width: min(82vw, 26rem);
+  }
+}
+
+@media (max-width: 640px) {
+  .hero__actions,
+  .close__actions { align-items: flex-start; }
+  .hero__actions .btn--ember,
+  .close__actions .btn--ember {
+    width: 100%;
+    --btn-pad: 1rem 0.9rem;
+    font-size: 0.6875rem;
+  }
+  .work__meta { align-items: flex-start; }
+  .work__tag { max-width: 8rem; }
+  .stat { min-height: 12rem; }
 }
 
 /* ---------- 15. Footer ---------- */
@@ -1217,6 +1468,10 @@ main[id] { scroll-margin-top: clamp(5.5rem, 11vh, 7.5rem); }
 
 @media (hover: none), (pointer: coarse) {
   .cursor, .cursor__dot { display: none; }
+  .work__visit {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 /* ---------- 17. Reveal ---------- */
@@ -1244,4 +1499,5 @@ main[id] { scroll-margin-top: clamp(5.5rem, 11vh, 7.5rem); }
   .js .reveal { opacity: 1; transform: none; }
   .js .reveal-line > span { transform: none; }
   .work__item:nth-child(even) { transform: none; }
+  .close__mark-fallback { display: block; }
 }

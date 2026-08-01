@@ -3,7 +3,7 @@
    Motion layer.
 
    The particle field is one GPU-resident system carrying four
-   shapes at once (product / field / components / mark). Scroll blends
+   shapes at once (lamp / lattice / woven knot / mark). Scroll blends
    between them in the vertex shader, so the CPU never touches
    per-particle math — that's what buys us ~16k particles instead
    of the ~3.5k a JS morph loop could afford.
@@ -16,21 +16,103 @@
   var COARSE = window.matchMedia('(hover: none), (pointer: coarse)').matches;
   var hasGSAP = typeof window.gsap !== 'undefined';
   var hasTHREE = typeof window.THREE !== 'undefined';
+  var loaderProgress = 0;
+
+  function setLoaderProgress(value, label) {
+    loaderProgress = Math.max(loaderProgress, Math.min(100, value));
+    var root = document.documentElement;
+    var output = document.querySelector('[data-loader-progress]');
+    var status = document.querySelector('[data-loader-label]');
+    var formatted = Math.round(loaderProgress);
+
+    root.style.setProperty('--loader-progress', (loaderProgress / 100).toFixed(3));
+    root.style.setProperty('--loader-glow-scale', (0.72 + loaderProgress * 0.0028).toFixed(3));
+    root.style.setProperty('--loader-glow-opacity', (0.28 + loaderProgress * 0.0072).toFixed(3));
+    if (output) output.textContent = (formatted < 10 ? '0' : '') + formatted;
+    if (status && label) status.textContent = label;
+  }
+
+  function wait(ms) {
+    return new Promise(function (resolve) { window.setTimeout(resolve, ms); });
+  }
+
+  function waitForFonts() {
+    if (!document.fonts || !document.fonts.ready) {
+      setLoaderProgress(72, 'Estrutura pronta');
+      return Promise.resolve();
+    }
+
+    return Promise.race([document.fonts.ready, wait(2200)]).then(function () {
+      setLoaderProgress(76, 'Tipografia pronta');
+    });
+  }
+
+  function waitForLoaderMark() {
+    var mark = document.querySelector('.loader__mark');
+    if (!mark || mark.complete) {
+      setLoaderProgress(84, 'Identidade pronta');
+      return Promise.resolve();
+    }
+
+    return Promise.race([
+      new Promise(function (resolve) {
+        mark.addEventListener('load', resolve, { once: true });
+        mark.addEventListener('error', resolve, { once: true });
+      }),
+      wait(1600)
+    ]).then(function () {
+      setLoaderProgress(84, 'Identidade pronta');
+    });
+  }
+
+  function waitForWarmFrames() {
+    return new Promise(function (resolve) {
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () {
+          setLoaderProgress(92, 'Movimento sincronizado');
+          resolve();
+        });
+      });
+    });
+  }
+
+  function waitForMarkSculpture(forge) {
+    if (!forge || !forge.ready) return Promise.resolve();
+
+    return Promise.race([forge.ready, wait(1800)]).then(function () {
+      setLoaderProgress(96, 'Símbolo RV preparado');
+    });
+  }
+
+  function releaseLoader() {
+    setLoaderProgress(100, 'Experiência pronta');
+
+    window.setTimeout(function () {
+      initReveals();
+      window.clearTimeout(window.__rvLoaderFailsafe);
+      document.documentElement.classList.remove('is-loading');
+
+      if (hasGSAP && window.ScrollTrigger) {
+        window.setTimeout(function () { ScrollTrigger.refresh(); }, 50);
+      }
+    }, REDUCED ? 20 : 180);
+  }
 
   /* ------------------------------------------------------------
      1. The forge — Three.js particle field
      ------------------------------------------------------------ */
 
   var VERT = [
-    'attribute vec3 aField;',
-    'attribute vec3 aGrid;',
+    'attribute vec3 aLattice;',
+    'attribute vec3 aKnot;',
     'attribute vec3 aLogo;',
     'attribute float aSize;',
     'attribute float aSeed;',
     'attribute float aTint;',
 
     'uniform float uTime;',
-    'uniform float uState;',   // 0 interface, 1 field, 2 component grid, 3 logo
+    'uniform float uState;',   // 0 lamp, 1 lattice, 2 woven knot, 3 mark
+    'uniform float uBurst;',   // knot explosion before the RV mark assembles
     'uniform float uScale;',
     'uniform vec3  uMouse;',
     'uniform float uMouseForce;',
@@ -42,9 +124,9 @@
     'void main() {',
     // Chained blend: each stage takes over the previous one.
     '  vec3 p = position;',
-    '  p = mix(p, aField, clamp(uState,       0.0, 1.0));',
-    '  p = mix(p, aGrid,  clamp(uState - 1.0, 0.0, 1.0));',
-    '  p = mix(p, aLogo,  clamp(uState - 2.0, 0.0, 1.0));',
+    '  p = mix(p, aLattice, clamp(uState,       0.0, 1.0));',
+    '  p = mix(p, aKnot,    clamp(uState - 1.0, 0.0, 1.0));',
+    '  p = mix(p, aLogo,    clamp(uState - 2.0, 0.0, 1.0));',
 
     // Drift keyed to the emitter seed, so panels wander as rigid pieces and
     // their edges stay sharp. Kept tight while the product is on screen, opened
@@ -56,6 +138,19 @@
     '  p.y += cos(t * 0.71 + aSeed * 5.117) * drift;',
     '  p.z += sin(t * 0.53 + aSeed * 4.331) * drift;',
 
+    // Scroll-driven breakup: particles travel radially in uneven clusters,
+    // then retrace the same path while the RV target assembles.
+    '  float burst = smoothstep(0.0, 1.0, uBurst);',
+    '  vec3 burstNoise = vec3(',
+    '    sin(aSeed * 91.73 + 0.4),',
+    '    cos(aSeed * 73.19 + 1.7),',
+    '    sin(aSeed * 57.41 + 2.8)',
+    '  );',
+    '  vec3 burstDir = normalize(p * 0.34 + burstNoise * 1.65 + 0.0001);',
+    '  float burstDistance = 2.2 + fract(aSeed * 37.17) * 5.2;',
+    '  p += burstDir * burstDistance * burst;',
+    '  p += burstNoise * sin(t * 0.34 + aSeed * 18.0) * burst * 0.32;',
+
     // Cursor repulsion, in the system's local space.
     '  vec3 away = p - uMouse;',
     '  float d = length(away);',
@@ -64,7 +159,12 @@
 
     '  vec4 mv = modelViewMatrix * vec4(p, 1.0);',
     '  gl_Position = projectionMatrix * mv;',
-    '  gl_PointSize = aSize * uScale / max(-mv.z, 0.1);',
+    // The hero gets large, legible triangles; the transitional fields become
+    // finer so a dense morph never turns into a wall in front of the content.
+    '  float stateSize = mix(1.0, 0.38, smoothstep(0.0, 1.0, uState));',
+    '  stateSize = mix(stateSize, 0.68, smoothstep(1.0, 2.0, uState));',
+    '  stateSize = mix(stateSize, 0.86, smoothstep(2.0, 3.0, uState));',
+    '  gl_PointSize = aSize * stateSize * uScale / max(-mv.z, 0.1);',
 
     '  vTint = aTint;',
     '  vFlicker = 0.62 + 0.38 * sin(t * 1.9 + aSeed * 12.566);',
@@ -102,8 +202,9 @@
     '  float edge = fwidth(d) + 0.012;',
     '  float outline = 1.0 - smoothstep(0.0, edge, abs(d) - 0.045);',
 
-    // A soft core keeps sub-pixel particles from disappearing entirely.
-    '  float core = exp(-dot(uv, uv) * 9.0) * 0.7;',
+    // A very faint core protects sub-pixel points without filling the larger
+    // triangles. At hero scale the glyph remains visibly outlined.
+    '  float core = exp(-dot(uv, uv) * 10.0) * 0.13;',
     '  float a = clamp(outline + core, 0.0, 1.0);',
     '  if (a < 0.01) discard;',
 
@@ -115,9 +216,7 @@
     // Depth fog so the far side of the cloud recedes into the void.
     '  float fog = clamp(1.30 - vDepth * 0.026, 0.20, 1.0);',
 
-    // Additive blending multiplies rgb by alpha, so brightness has to live in
-    // the colour term or the field washes out to grey dust.
-    '  gl_FragColor = vec4(col * (1.15 + vFlicker * 0.95), a * uOpacity * fog);',
+    '  gl_FragColor = vec4(col * (0.82 + vFlicker * 0.34), a * uOpacity * fog * 0.92);',
     '}'
   ].join('\n');
 
@@ -146,60 +245,41 @@
     camera.position.z = 9;
 
     var isSmall = window.innerWidth < 900;
-    var COUNT = REDUCED ? 3000 : (isSmall ? 6000 : 16000);
+    // Density control. With larger glyphs, fewer particles keep the drawings
+    // open and let every outlined triangle remain individually legible.
+    var PARTICLE_COUNT = {
+      reduced: 1600,
+      mobile: 3400,
+      desktop: 28000
+    };
+    var COUNT = REDUCED
+      ? PARTICLE_COUNT.reduced
+      : (isSmall ? PARTICLE_COUNT.mobile : PARTICLE_COUNT.desktop);
 
-    var interfaceP = new Float32Array(COUNT * 3);
-    var fieldP = new Float32Array(COUNT * 3);
-    var gridP = new Float32Array(COUNT * 3);
+    // Global control for the outlined triangle glyphs that build every form.
+    // This changes each triangle, independently from the sculptures' scale.
+    var PARTICLE_GLYPH_SCALE = 0.5;
+
+    var heroP = new Float32Array(COUNT * 3);
+    var latticeP = new Float32Array(COUNT * 3);
+    var knotP = new Float32Array(COUNT * 3);
     var logoP = new Float32Array(COUNT * 3);
     var sizes = new Float32Array(COUNT);
     var seeds = new Float32Array(COUNT);
     var tints = new Float32Array(COUNT);
 
     var TAU = Math.PI * 2;
-    var tmp = [0, 0];
+    var tmp3 = [0, 0, 0];
 
     /* ---- Emitters --------------------------------------------------------
        Each shape is a list of emitters carrying a weight. Particles are dealt
-       out in proportion to that weight, so a long panel edge and a short label
-       rule end up with the same line density instead of the short one clotting.
+       out in proportion to that weight, so a long curve and a short one end up
+       with the same line density instead of the short one clotting.
 
        Every emitter also carries its own seed. The drift in the vertex shader
-       keys off that seed, so a panel wanders as a rigid piece rather than
-       dissolving — which is the whole reason an interface can read here at all
-       where a per-particle jitter would just blur the edges away. */
-
-    function roundRect(x0, y0, x1, y1, rad) {
-      var w = x1 - x0, h = y1 - y0, per = 2 * (w + h);
-      return {
-        w: per,
-        seed: Math.random(),
-        z: 0,
-        s: function (out) {
-          var t = Math.random() * per, px, py;
-          if (t < w) { px = x0 + t; py = y0; }
-          else if ((t -= w) < h) { px = x1; py = y0 + t; }
-          else if ((t -= h) < w) { px = x1 - t; py = y1; }
-          else { px = x0; py = y1 - (t - w); }
-          // Project onto the rounded boundary. The corner radius is what makes
-          // these read as interface instead of as wireframe boxes.
-          var cx = Math.min(Math.max(px, x0 + rad), x1 - rad);
-          var cy = Math.min(Math.max(py, y0 + rad), y1 - rad);
-          var dx = px - cx, dy = py - cy;
-          var d = Math.sqrt(dx * dx + dy * dy);
-          if (d > 0.0001) { px = cx + dx / d * rad; py = cy + dy / d * rad; }
-          out[0] = px; out[1] = py;
-        }
-      };
-    }
-
-    function hLine(x0, x1, y) {
-      var w = x1 - x0;
-      return {
-        w: w, seed: Math.random(), z: 0,
-        s: function (out) { out[0] = x0 + Math.random() * w; out[1] = y; }
-      };
-    }
+       keys off that seed, so a curve wanders as a rigid piece rather than
+       dissolving — which is what keeps the wireframe sharp where a per-particle
+       jitter would blur it into a cloud. */
 
     function pick(list, total) {
       var r = Math.random() * total, acc = 0;
@@ -216,130 +296,207 @@
       return s;
     }
 
-    /* ---- Shape 0: the product assembling ---------------------------------
-       A dashboard in exploded perspective — sidebar, header, two cards, a bar
-       chart and a list — deliberately echoing the real products further down
-       the page. The panels sit at different depths so it reads as something
-       being put together rather than a flat wireframe. */
+    /* ---- Shape 0: the idea, engineered ------------------------------------
+       A volumetric lamp built from a dense glass shell, precision contour
+       curves, a real helical screw base and a hot filament. The earlier lamp
+       was only a sparse wireframe; this one has enough information to hold up
+       as the hero object even when the camera stops moving. */
 
-    var ui = [];
-    var UI = 0.72;   // overall scale of the assembled product
+    // Main size control for the animated hero object. Raise these values to
+    // give the sculpture more presence; lower them to create more breathing room.
+    var HERO_OBJECT_SCALE = isSmall ? 1.90 : 2.08;
+    var heroE = [];
 
-    function panel(x0, y0, x1, y1, z, rad, rows) {
-      var e = roundRect(x0, y0, x1, y1, rad);
-      e.z = z;
-      ui.push(e);
-      for (var k = 0; k < (rows || 0); k++) {
-        var yy = y1 - 0.5 - k * 0.44;
-        if (yy < y0 + 0.25) break;
-        var l = hLine(x0 + 0.32, x0 + 0.32 + (x1 - x0 - 0.7) * (0.4 + Math.random() * 0.5), yy);
-        l.z = z + 0.02;
-        l.w *= 0.85;
-        ui.push(l);
+    function hE(w, glow, sz, f) {
+      heroE.push({ w: w, glow: glow, sz: sz, seed: Math.random(), f: f });
+    }
+
+    function glassR(y) {
+      if (y >= 0.52) {
+        var dy = (y - 1.34) / 1.48;
+        return 1.48 * Math.sqrt(Math.max(0, 1 - dy * dy));
       }
+      var shoulder = 1.48 * Math.sqrt(1 - Math.pow((0.52 - 1.34) / 1.48, 2));
+      var t = Math.min(1, (0.52 - y) / 1.02);
+      return shoulder + (0.53 - shoulder) * (0.5 - 0.5 * Math.cos(Math.PI * t));
     }
 
-    panel(-5.4, -3.6, 5.4, 3.6, 0, 0.3);              // app frame
-    panel(-5.4, -3.6, -2.8, 3.6, 0.06, 0.3);          // sidebar
-    panel(-2.8, 2.5, 5.4, 3.6, 0.06, 0.3);            // top bar
-    panel(-2.35, 0.35, 0.7, 2.2, 0.66, 0.22, 3);      // card
-    panel(1.0, 0.35, 4.95, 2.2, 0.66, 0.22);          // chart card
-    panel(-2.35, -3.15, 4.95, -0.15, 0.44, 0.22, 5);  // list
+    // Glass volume — dense enough to reveal curvature, open enough to keep the
+    // filament visible through it. The small radial offset adds thickness.
+    hE(128, 0.5, 0.66, function (o) {
+      var y = -0.5 + Math.random() * 3.25;
+      var a = Math.random() * TAU;
+      var r = glassR(y) + (Math.random() - 0.5) * 0.055;
+      o[0] = Math.cos(a) * r;
+      o[1] = y;
+      o[2] = Math.sin(a) * r;
+    });
 
-    for (var nv = 0; nv < 5; nv++) {                  // sidebar nav items
-      var navEl = roundRect(-5.0, 2.18 - nv * 0.64, -3.25, 2.6 - nv * 0.64, 0.16);
-      navEl.z = 0.1;
-      ui.push(navEl);
-    }
+    // Bright silhouette hems and meridians keep the lamp crisp at a glance.
+    hE(34, 0.08, 0.82, function (o) {
+      var y = -0.5 + Math.random() * 3.25;
+      o[0] = -glassR(y); o[1] = y; o[2] = 0;
+    });
+    hE(34, 0.08, 0.82, function (o) {
+      var y = -0.5 + Math.random() * 3.25;
+      o[0] = glassR(y); o[1] = y; o[2] = 0;
+    });
+    [-0.02, 1.72].forEach(function (yy) {
+      var rr = glassR(yy);
+      hE(TAU * rr * 1.05, 0.16, 0.78, function (o) {
+        var a = Math.random() * TAU;
+        o[0] = Math.cos(a) * rr; o[1] = yy; o[2] = Math.sin(a) * rr;
+      });
+    });
 
-    for (var bar = 0; bar < 7; bar++) {               // bars in the chart card
-      var bx = 1.38 + bar * 0.5;
-      var barEl = roundRect(bx, 0.62, bx + 0.3, 0.62 + (0.28 + Math.random() * 1.15), 0.1);
-      barEl.z = 0.7;
-      ui.push(barEl);
-    }
+    // Neck and metal base: a dense cylinder plus one continuous screw thread.
+    hE(42, 0.72, 0.94, function (o) {
+      var y = -2.12 + Math.random() * 1.48;
+      var a = Math.random() * TAU;
+      var r = 0.55 + (Math.random() - 0.5) * 0.06;
+      o[0] = Math.cos(a) * r; o[1] = y; o[2] = Math.sin(a) * r;
+    });
+    hE(54, 0.28, 1.22, function (o) {
+      var u = Math.random();
+      var a = u * TAU * 7.2;
+      var r = 0.61 + Math.sin(a * 0.5) * 0.025;
+      o[0] = Math.cos(a) * r;
+      o[1] = -0.68 - u * 1.5;
+      o[2] = Math.sin(a) * r;
+    });
+    hE(10, 0.18, 1.22, function (o) {
+      var a = Math.random() * TAU;
+      var r = Math.sqrt(Math.random()) * 0.34;
+      o[0] = Math.cos(a) * r; o[1] = -2.28; o[2] = Math.sin(a) * r;
+    });
 
-    var badge = roundRect(3.35, -1.5, 5.75, -0.82, 0.34);  // a piece still landing
-    badge.z = 1.55;
-    ui.push(badge);
+    // The bright tungsten coil and its two support posts sit inside the glass.
+    hE(24, 0.01, 1.55, function (o) {
+      var u = Math.random();
+      var coil = u * TAU * 8;
+      o[0] = -0.55 + u * 1.1;
+      o[1] = 0.92 + Math.cos(coil) * 0.23;
+      o[2] = Math.sin(coil) * 0.23;
+    });
+    hE(18, 0.04, 1.3, function (o) {
+      var side = Math.random() < 0.5 ? -1 : 1;
+      var u = Math.random();
+      o[0] = side * (0.48 - u * 0.06);
+      o[1] = -0.52 + u * 1.52;
+      o[2] = 0;
+    });
 
-    // Sparse dot grid behind the panels. Kept inside their footprint — spread
-    // any wider and it is the backdrop, not the product, that collides with
-    // the headline.
-    var backdrop = {
-      w: 30, seed: Math.random(), z: -2.4,
-      s: function (out) {
-        out[0] = (Math.round(Math.random() * 16) - 8) * 0.66;
-        out[1] = (Math.round(Math.random() * 11) - 5.5) * 0.66;
+    // A restrained halo of free triangles borrows the Dala sense of scale and
+    // makes the sculpture feel suspended in a much larger field.
+    hE(18, 0.38, 0.78, function (o) {
+      var a = Math.random() * TAU;
+      var r = 2.05 + Math.pow(Math.random(), 0.55) * 1.6;
+      o[0] = Math.cos(a) * r;
+      o[1] = -0.1 + Math.sin(a) * r * 0.72 + (Math.random() - 0.5) * 1.8;
+      o[2] = (Math.random() - 0.5) * 2.5;
+    });
+
+    var heroTotal = totalOf(heroE);
+
+    /* ---- Shape 2: three disciplines, one continuous system ---------------
+       A trefoil knot replaces the literal component boxes. Three luminous
+       rails share one path: design, engineering and intelligence moving as a
+       single system. Sparse particles fill the tube just enough to reveal its
+       depth without turning the form into a solid mesh. */
+
+    function sampleKnot(out, index) {
+      var u = Math.random() * TAU;
+      var P = 2, Q = 3;
+      var major = 4.65;
+      var minor = 1.42;
+      var pu = P * u, qu = Q * u;
+      var cpu = Math.cos(pu), spu = Math.sin(pu);
+      var cqu = Math.cos(qu), squ = Math.sin(qu);
+      var ring = major + minor * cqu;
+
+      var cx = ring * cpu;
+      var cy = ring * spu;
+      var cz = minor * squ;
+
+      // Analytic tangent and a stable local frame around the knot.
+      var tx = -P * ring * spu - minor * Q * squ * cpu;
+      var ty = P * ring * cpu - minor * Q * squ * spu;
+      var tz = minor * Q * cqu;
+      var tl = Math.sqrt(tx * tx + ty * ty + tz * tz) || 1;
+      tx /= tl; ty /= tl; tz /= tl;
+
+      var nx = cpu * cqu;
+      var ny = spu * cqu;
+      var nz = squ;
+      var nl = Math.sqrt(nx * nx + ny * ny + nz * nz) || 1;
+      nx /= nl; ny /= nl; nz /= nl;
+
+      var bx = ty * nz - tz * ny;
+      var by = tz * nx - tx * nz;
+      var bz = tx * ny - ty * nx;
+      var bl = Math.sqrt(bx * bx + by * by + bz * bz) || 1;
+      bx /= bl; by /= bl; bz /= bl;
+
+      var rail = index % 3;
+      var angle = rail * TAU / 3 + Math.sin(u * 6) * 0.13;
+      var tube = 0.33 + (Math.random() - 0.5) * 0.075;
+
+      // Every seventh point sits inside the rails, making the crossings read
+      // as volume while the majority preserves three crisp flowing lines.
+      if (index % 7 === 0) {
+        angle = Math.random() * TAU;
+        tube = Math.sqrt(Math.random()) * 0.48;
       }
-    };
-    ui.push(backdrop);
 
-    var uiTotal = totalOf(ui);
-
-    /* ---- Shape 2: the component sheet ------------------------------------
-       Buttons, inputs, toggles and cards on a grid with the centre left empty,
-       so the sheet frames the copy instead of sitting underneath it. */
-
-    var comps = [];
-    for (var cgx = -7; cgx <= 7; cgx++) {
-      for (var cgy = -5; cgy <= 5; cgy++) {
-        var ccx = cgx * 2.4, ccy = cgy * 1.95;
-        if (Math.abs(ccx) < 7.6 && Math.abs(ccy) < 4.8) continue;   // hole for the text
-        var kind = Math.random(), ce;
-        if (kind < 0.3) ce = roundRect(ccx - 0.72, ccy - 0.23, ccx + 0.72, ccy + 0.23, 0.23);
-        else if (kind < 0.56) ce = roundRect(ccx - 0.88, ccy - 0.29, ccx + 0.88, ccy + 0.29, 0.09);
-        else if (kind < 0.76) ce = roundRect(ccx - 0.46, ccy - 0.25, ccx + 0.46, ccy + 0.25, 0.25);
-        else ce = roundRect(ccx - 0.82, ccy - 0.64, ccx + 0.82, ccy + 0.64, 0.16);
-        ce.z = (Math.random() - 0.5) * 0.7;
-        comps.push(ce);
-      }
+      var ca = Math.cos(angle), sa = Math.sin(angle);
+      out[0] = (cx + (nx * ca + bx * sa) * tube) * 1.08;
+      out[1] = (cy + (ny * ca + by * sa) * tube) * 0.72;
+      out[2] = cz + (nz * ca + bz * sa) * tube;
     }
-    var compTotal = totalOf(comps);
 
     for (var i = 0; i < COUNT; i++) {
       var i3 = i * 3;
 
-      // Shape 0 — the assembling product. Scaled to sit in the right-hand
-      // column without its left edge reaching the copy.
-      var el = pick(ui, uiTotal);
-      el.s(tmp);
-      interfaceP[i3] = tmp[0] * UI;
-      interfaceP[i3 + 1] = tmp[1] * UI;
-      interfaceP[i3 + 2] = (el.z + (Math.random() - 0.5) * 0.05) * UI;
+      // Shape 0 — the lamp.
+      var be = pick(heroE, heroTotal);
+      be.f(tmp3);
+      heroP[i3] = tmp3[0] * HERO_OBJECT_SCALE;
+      heroP[i3 + 1] = tmp3[1] * HERO_OBJECT_SCALE;
+      heroP[i3 + 2] = tmp3[2] * HERO_OBJECT_SCALE;
 
       // Shape 1 — a wide, far grid. Through the work section the screenshots
-      // are the subject, so the field retreats into depth and gets out of it.
+      // are the subject, so the field sits behind them as architecture.
       var side = Math.ceil(Math.sqrt(COUNT));
       var gx = (i % side) / (side - 1) - 0.5;
       var gy = Math.floor(i / side) / (side - 1) - 0.5;
-      fieldP[i3] = gx * 34.0;
-      fieldP[i3 + 1] = gy * 22.0;
-      fieldP[i3 + 2] = Math.sin(gx * 11) * Math.cos(gy * 9) * 2.6;
+      latticeP[i3] = gx * 34.0;
+      latticeP[i3 + 1] = gy * 22.0;
+      latticeP[i3 + 2] = Math.sin(gx * 11) * Math.cos(gy * 9) * 2.6;
 
-      // Shape 2 — the component sheet.
-      var ce2 = pick(comps, compTotal);
-      ce2.s(tmp);
-      gridP[i3] = tmp[0];
-      gridP[i3 + 1] = tmp[1];
-      gridP[i3 + 2] = ce2.z;
+      // Shape 2 — the woven trefoil.
+      sampleKnot(tmp3, i);
+      knotP[i3] = tmp3[0];
+      knotP[i3 + 1] = tmp3[1];
+      knotP[i3 + 2] = tmp3[2];
 
       // Shape 3 — overwritten once the mark is sampled.
-      logoP[i3] = interfaceP[i3] * 0.5;
-      logoP[i3 + 1] = interfaceP[i3 + 1] * 0.5;
+      logoP[i3] = heroP[i3] * 0.6;
+      logoP[i3 + 1] = heroP[i3 + 1] * 0.6;
       logoP[i3 + 2] = 0;
 
-      sizes[i] = 0.011 + Math.random() * 0.028;
-      // Panels drift as rigid pieces: the seed is the element's, not the
-      // particle's, plus a hair of shimmer so it never looks frozen.
-      seeds[i] = el.seed + Math.random() * 0.03;
-      tints[i] = Math.random() < 0.03 ? 0.98 : Math.pow(Math.random(), 1.25) * 0.9;
+      sizes[i] = (0.05 + Math.random() * 0.068) * be.sz * PARTICLE_GLYPH_SCALE;
+      seeds[i] = be.seed + Math.random() * 0.03;
+      // Tint ramps light -> brand -> deep red, so the filament sits at the
+      // bottom of the ramp and the glass higher up.
+      tints[i] = Math.random() < 0.025
+        ? 1
+        : Math.max(0, Math.min(0.94, be.glow + (Math.random() - 0.5) * 0.12));
     }
 
     var geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.BufferAttribute(interfaceP, 3));
-    geo.setAttribute('aField', new THREE.BufferAttribute(fieldP, 3));
-    geo.setAttribute('aGrid', new THREE.BufferAttribute(gridP, 3));
+    geo.setAttribute('position', new THREE.BufferAttribute(heroP, 3));
+    geo.setAttribute('aLattice', new THREE.BufferAttribute(latticeP, 3));
+    geo.setAttribute('aKnot', new THREE.BufferAttribute(knotP, 3));
     geo.setAttribute('aLogo', new THREE.BufferAttribute(logoP, 3));
     geo.setAttribute('aSize', new THREE.BufferAttribute(sizes, 1));
     geo.setAttribute('aSeed', new THREE.BufferAttribute(seeds, 1));
@@ -348,6 +505,7 @@
     var uniforms = {
       uTime: { value: 0 },
       uState: { value: 0 },
+      uBurst: { value: 0 },
       uScale: { value: renderer.domElement.height * 0.5 },
       uMouse: { value: new THREE.Vector3(999, 999, 999) },
       uMouseForce: { value: 0 },
@@ -363,14 +521,24 @@
       fragmentShader: FRAG,
       transparent: true,
       depthWrite: false,
-      blending: THREE.AdditiveBlending,
+      blending: THREE.NormalBlending,
       extensions: { derivatives: true }
     });
 
     var field = new THREE.Points(geo, material);
+    // Morph targets extend far beyond the hero's original bounding sphere.
+    field.frustumCulled = false;
     scene.add(field);
 
-    /* --- Sample the RV mark into the logo target --- */
+    /* --- Build the existing RV mark as a volumetric particle sculpture ----
+       The monogram is not painted black in the PNG: it is transparent space
+       carved through the orange tile. Reading the alpha channel preserves both
+       the outer silhouette and the complete RV cutout, exactly as the earlier
+       implementation did. The contour then gets a restrained extrusion. */
+    var sculptureResolve;
+    var sculptureReady = new Promise(function (resolve) { sculptureResolve = resolve; });
+    var logoTargetReady = false;
+    var LOGO_OBJECT_SCALE = isSmall ? 0.052 : 0.060;
     var img = new Image();
     img.crossOrigin = 'anonymous';
     img.onload = function () {
@@ -379,51 +547,116 @@
         var c = document.createElement('canvas');
         c.width = c.height = S;
         var ctx = c.getContext('2d', { willReadFrequently: true });
-        ctx.drawImage(img, 0, 0, S, S);
+        var ratio = img.naturalWidth / img.naturalHeight;
+        var drawW = ratio >= 1 ? S : S * ratio;
+        var drawH = ratio >= 1 ? S / ratio : S;
+        var drawX = (S - drawW) * 0.5;
+        var drawY = (S - drawH) * 0.5;
+        ctx.clearRect(0, 0, S, S);
+        ctx.drawImage(img, drawX, drawY, drawW, drawH);
         var data = ctx.getImageData(0, 0, S, S).data;
 
+        function isMarkPixel(x, y) {
+          if (x < 0 || x >= S || y < 0 || y >= S) return false;
+          var at = (y * S + x) * 4;
+          return data[at + 3] > 120;
+        }
+
         var pts = [];
+        var edges = [];
+        var minX = S, maxX = 0, minY = S, maxY = 0;
         for (var y = 0; y < S; y++) {
           for (var x = 0; x < S; x++) {
-            if (data[(y * S + x) * 4 + 3] > 120) {
-              pts.push([(x - S / 2) * 0.058, -(y - S / 2) * 0.058]);
+            if (!isMarkPixel(x, y)) continue;
+            var point = [x, y];
+            pts.push(point);
+            minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+            minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+
+            if (!isMarkPixel(x - 1, y) || !isMarkPixel(x + 1, y) ||
+                !isMarkPixel(x, y - 1) || !isMarkPixel(x, y + 1)) {
+              edges.push(point);
             }
           }
         }
-        if (!pts.length) return;
+        if (!pts.length) {
+          sculptureResolve(false);
+          return;
+        }
 
         for (var k = pts.length - 1; k > 0; k--) {
           var j = (Math.random() * (k + 1)) | 0;
           var tmp = pts[k]; pts[k] = pts[j]; pts[j] = tmp;
         }
+        for (var e = edges.length - 1; e > 0; e--) {
+          var ej = (Math.random() * (e + 1)) | 0;
+          var et = edges[e]; edges[e] = edges[ej]; edges[ej] = et;
+        }
 
+        var centreX = (minX + maxX) * 0.5;
+        var centreY = (minY + maxY) * 0.5;
         var attr = geo.attributes.aLogo;
         for (var n = 0; n < COUNT; n++) {
-          var p = pts[n % pts.length];
-          attr.array[n * 3] = p[0] + (Math.random() - 0.5) * 0.05;
-          attr.array[n * 3 + 1] = p[1] + (Math.random() - 0.5) * 0.05;
-          attr.array[n * 3 + 2] = (Math.random() - 0.5) * 0.7;
+          var useEdge = edges.length && n % 4 === 0;
+          var source = useEdge ? edges : pts;
+          var p = source[n % source.length];
+          var depth = useEdge ? 1.05 : 0.72;
+          attr.array[n * 3] = (p[0] - centreX) * LOGO_OBJECT_SCALE + (Math.random() - 0.5) * 0.045;
+          attr.array[n * 3 + 1] = -(p[1] - centreY) * LOGO_OBJECT_SCALE + (Math.random() - 0.5) * 0.045;
+          attr.array[n * 3 + 2] = (Math.random() - 0.5) * depth;
         }
         attr.needsUpdate = true;
+        logoTargetReady = true;
+        sculptureResolve(true);
       } catch (e) {
-        /* Tainted canvas (file://) — the fallback logo target stays. */
+        sculptureResolve(false);
       }
     };
-    img.src = 'assets/logo-orange.png';
+    img.onerror = function () { sculptureResolve(false); };
+    img.src = 'assets/logo-gradient.png';
 
-    /* --- Placement: right of the headline on desktop, behind it on mobile --- */
-    // Park it against the right edge of the frame rather than at a fixed world
-    // offset: a constant x either clips on narrow desktops or drifts into the
-    // copy on wide ones.
-    function homeX() {
-      if (window.innerWidth < 900) return 0;
+    /* --- Placement: hero object and closing mark follow their DOM columns - */
+    var home = new THREE.Vector3();
+    var markHome = new THREE.Vector3();
+    var heroVisual = document.querySelector('.hero__visual');
+    var closeVisual = document.querySelector('.close__visual');
+
+    function updateHome() {
       var halfW = Math.tan(camera.fov * Math.PI / 360) * camera.position.z * camera.aspect;
-      return Math.max(3.2, halfW - 4.8);
+      var halfH = Math.tan(camera.fov * Math.PI / 360) * camera.position.z;
+      var rect = heroVisual ? heroVisual.getBoundingClientRect() : null;
+      var screenX = rect ? (rect.left + rect.width * 0.5) / window.innerWidth : 0.74;
+      var screenY = rect
+        ? (rect.top + rect.height * (window.innerWidth < 900 ? 0.64 : 0.48)) / window.innerHeight
+        : 0.5;
+
+      if (window.innerWidth < 900) {
+        // On a stacked layout the object follows its reserved DOM plinth into
+        // view, instead of sitting behind the CTA on the first phone screen.
+        home.set((screenX * 2 - 1) * halfW, -(screenY * 2 - 1) * halfH, -1.8);
+      } else {
+        home.set((screenX * 2 - 1) * halfW, -(screenY * 2 - 1) * halfH, -0.25);
+      }
     }
-    // On phones there is no free column, so it drops below the copy and sits
-    // further back — present as atmosphere, never over the headline.
-    function homeY() { return window.innerWidth < 900 ? -2.6 : 0.15; }
-    function homeZ() { return window.innerWidth < 900 ? -5.5 : 0; }
+
+    function updateMarkHome() {
+      var halfW = Math.tan(camera.fov * Math.PI / 360) * camera.position.z * camera.aspect;
+      var halfH = Math.tan(camera.fov * Math.PI / 360) * camera.position.z;
+      var rect = closeVisual ? closeVisual.getBoundingClientRect() : null;
+      var screenX = rect ? (rect.left + rect.width * 0.5) / window.innerWidth : 0.74;
+      var screenY = rect ? (rect.top + rect.height * 0.5) / window.innerHeight : 0.5;
+      var depth = window.innerWidth < 900 ? -1.15 : -0.35;
+
+      markHome.set(
+        (screenX * 2 - 1) * halfW,
+        -(screenY * 2 - 1) * halfH,
+        depth
+      );
+    }
+
+    updateHome();
+    updateMarkHome();
+    field.position.copy(home);
 
     var pointer = { x: 0, y: 0 };      // normalized -1..1
     var eased = { x: 0, y: 0 };
@@ -441,8 +674,10 @@
       window.addEventListener('mouseleave', function () { hasPointer = false; });
     }
 
-    /* --- Scroll drives the morph: product -> field -> components -> mark --- */
+    /* --- Scroll drives the morph: lamp -> lattice -> knot -> mark --- */
     var stage = { a: 0, b: 0, c: 0, d: 0 };
+    var procDim = 0;
+    var whoBurst = 0;
 
     if (hasGSAP && window.ScrollTrigger && !REDUCED) {
       gsap.registerPlugin(ScrollTrigger);
@@ -455,15 +690,52 @@
           start: start,
           end: end,
           scrub: 1.1,
-          onUpdate: function (self) { stage[key] = self.progress; }
+          onUpdate: function (self) { stage[key] = self.progress; },
+          onLeave: function () { stage[key] = 1; },
+          onLeaveBack: function () { stage[key] = 0; }
         });
       };
 
-      // The product must clear the frame before the real screenshots arrive —
-      // nothing should compete with the proof.
+      // The lamp clears the frame as the real screenshots arrive, the lattice
+      // sits behind them, and the woven knot takes over for the capabilities.
       link('#trabalho', 'top 90%', 'top 25%', 'a');
       link('#capacidades', 'top 85%', 'top 20%', 'b');
       link('#contato', 'top 85%', 'center 62%', 'c');
+
+      // The capabilities sculpture dips through the process section, letting
+      // the four clear steps own that part of the page without visual noise.
+      var proc = document.querySelector('#processo');
+      if (proc) {
+        ScrollTrigger.create({
+          trigger: proc,
+          start: 'top bottom',
+          end: 'bottom top',
+          scrub: 0.8,
+          onUpdate: function (self) {
+            procDim = 1 - Math.abs(self.progress * 2 - 1);
+          },
+          onLeave: function () { procDim = 0; },
+          onLeaveBack: function () { procDim = 0; }
+        });
+      }
+
+      // As the personal section arrives, the knot breaks apart early. It stays
+      // dispersed until the contact section pulls the same points into the RV.
+      var who = document.querySelector('#quem');
+      if (who) {
+        ScrollTrigger.create({
+          trigger: who,
+          start: 'top 90%',
+          end: 'top 28%',
+          scrub: 0.65,
+          onUpdate: function (self) {
+            whoBurst = Math.min(1, self.progress * 1.35);
+          },
+          onLeave: function () { whoBurst = 1; },
+          onLeaveBack: function () { whoBurst = 0; }
+        });
+      }
+
       // The mark assembles, holds, then burns out over the footer.
       link('.footer', 'top bottom', 'top 55%', 'd');
     }
@@ -488,55 +760,99 @@
       prevT = t;
       uniforms.uTime.value = t;
 
-      var state = stage.a + stage.b + stage.c;
-      uniforms.uState.value = state;
+      // The lamp owns the hero outright — it does not morph until you scroll.
+      uniforms.uState.value = stage.a + stage.b + stage.c;
+      // The burst reaches its widest point through "Quem faz" and collapses as
+      // the contact morph advances, producing a true explode -> assemble beat.
+      var burst = whoBurst * (1 - Math.min(1, stage.c * 1.18));
+      uniforms.uBurst.value = burst;
 
       // Fade in against the clock, not the frame counter — a per-frame ramp
       // resolves twice as fast on a 120Hz panel as on a 60Hz one.
       var intro = Math.min(1, t / 1.4);
 
-      // Brightness is choreographed against what each section is asking the eye
-      // to do. Over the work, the real screenshots are the argument and the
-      // field all but disappears. Over the component sheet it comes back, but
-      // only enough to frame. The mark stays a watermark, never a competitor.
-      var overWork = 1 - 0.72 * stage.a * (1 - stage.b);
-      var overGrid = 1 - 0.34 * stage.b * (1 - stage.c);
-      var overMark = 1 - 0.55 * stage.c;
+      // The lattice remains visible through the projects as a topographic map.
+      // It supports the screenshots at half strength instead of disappearing.
+      // The knot then takes over for capabilities, and the RV sculpture returns
+      // to full presence inside its own column beside the closing CTA.
+      var overWork = 1 - 0.52 * stage.a * (1 - stage.b);
+      var overKnot = 1 - 0.48 * stage.b * (1 - stage.c);
+      var overProcess = 1 - 0.72 * procDim;
+      var overMark = 1 - (logoTargetReady ? 0.08 : 0.96) * stage.c;
 
       // On phones there is no empty column to put it in — it sits directly
       // behind the copy, so it drops to atmosphere.
-      var narrow = window.innerWidth < 900 ? 0.5 : 1;
+      var narrowBase = window.innerWidth < 900 ? 0.58 : 1;
+      var narrow = narrowBase + (1 - narrowBase) * stage.c;
+      var burstDim = 1 - burst * 0.42;
 
       uniforms.uOpacity.value =
-        intro * overWork * overGrid * overMark * (1 - 0.85 * stage.d) * narrow;
+        intro * overWork * overKnot * overProcess * overMark *
+        (1 - 0.85 * stage.d) * narrow * burstDim;
 
       eased.x += (pointer.x - eased.x) * 0.045;
       eased.y += (pointer.y - eased.y) * 0.045;
 
-      // Everything after the hero is centred: the component sheet has a hole
-      // cut for the copy, and the mark belongs dead centre. Only the assembled
-      // product sits off to one side.
-      var toCenter = Math.min(1, Math.max(stage.a * 1.3, stage.c * 1.15));
-      target.set(
-        homeX() * (1 - toCenter) + eased.x * 0.85,
-        homeY() * (1 - toCenter) + eased.y * 0.6,
-        homeZ() * (1 - toCenter) - 6.0 * stage.a * (1 - stage.b)
-      );
-      field.position.lerp(target, 0.05);
+      if (window.innerWidth < 900 && stage.a < 0.2) updateHome();
+      if (stage.c > 0.001) updateMarkHome();
 
-      // The product is held near face-on with just enough three-quarter turn to
-      // show the panels stacked in depth. Rotate it any further and the
-      // rectangles skew into unreadable diamonds; spin it and it stops being an
-      // interface at all. Only the later shapes, which have no silhouette to
-      // protect, are free to turn.
-      var spin = 1 - Math.min(1, stage.c * 1.4);
+      // Transitional fields sit at the centre. As the final morph resolves, the
+      // mark moves into the reserved right-hand column just like the hero lamp.
+      var toCenter = Math.min(1, stage.a * 1.3);
+      var toMark = Math.min(1, stage.c * 1.2);
+      var workDepth = -2.6 * stage.a * (1 - stage.b);
+      var knotDepth = -1.45 * stage.b * (1 - stage.c);
+      var baseX = home.x * (1 - toCenter);
+      var baseY = home.y * (1 - toCenter);
+      var baseZ = home.z * (1 - toCenter) + workDepth + knotDepth;
+      target.set(
+        baseX * (1 - toMark) + markHome.x * toMark + eased.x * (0.85 - toMark * 0.3),
+        baseY * (1 - toMark) + markHome.y * toMark + eased.y * (0.6 - toMark * 0.18),
+        baseZ * (1 - toMark) + markHome.z * toMark
+      );
+      // A long reverse scroll should settle the sculpture back in the hero
+      // before the user notices the old section offset lingering onscreen.
+      var heroReturnBoost = 1 - Math.min(1, stage.a * 12);
+      field.position.lerp(target, 0.05 + heroReturnBoost * 0.07);
+
+      // The lamp and RV mark both hold deliberate three-quarter views. The mark
+      // keeps a slow living rotation so its extrusion remains visible.
       var morphing = Math.min(1, stage.a * 1.5);
       var settled = 1 - morphing;
-      spinY += dt * 0.55 * morphing;
+      spinY = (spinY + dt * 0.55 * morphing) % TAU;
+      if (morphing < 0.02) spinY *= 0.88;
 
-      field.rotation.y = settled * (-0.34 + Math.sin(t * 0.17) * 0.07) + spinY;
-      field.rotation.x = (settled * (0.13 + Math.sin(t * 0.21) * 0.035) + eased.y * 0.1) * spin;
-      field.rotation.z = (settled * 0.015 + eased.x * 0.03) * spin;
+      var mapLock = Math.min(1, stage.a * 1.25);
+      var knotLock = Math.min(1, stage.b * 1.25);
+      // Never let rotation accumulated in later sections turn the restored
+      // lamp edge-on when the page returns to the top.
+      var freeY = settled * (-0.42 + Math.sin(t * 0.16) * 0.07) + spinY * morphing;
+      var freeX = settled * (0.07 + Math.sin(t * 0.19) * 0.025) + eased.y * 0.065;
+      var freeZ = settled * (-0.045) + eased.x * 0.026;
+
+      // Face the lattice toward the camera with a cartographic tilt. Tiny
+      // changes in angle keep the terrain alive without ever turning edge-on.
+      var mapY = -0.08 + Math.sin(t * 0.1) * 0.028;
+      var mapX = -0.52 + Math.sin(t * 0.085) * 0.035;
+      var mapZ = Math.sin(t * 0.075) * 0.018;
+      var knotY = -0.18 + Math.sin(t * 0.16) * 0.16;
+      var knotX = -0.22 + Math.sin(t * 0.13) * 0.07;
+      var knotZ = Math.sin(t * 0.11) * 0.035;
+
+      var logoLock = Math.min(1, stage.c * 1.25);
+      var logoY = -0.34 + Math.sin(t * 0.21) * 0.11 + eased.x * 0.025;
+      var logoX = 0.07 + Math.sin(t * 0.17) * 0.045 + eased.y * 0.025;
+      var logoZ = -0.025 + Math.sin(t * 0.12) * 0.018;
+      var mappedY = freeY * (1 - mapLock) + mapY * mapLock;
+      var mappedX = freeX * (1 - mapLock) + mapX * mapLock;
+      var mappedZ = freeZ * (1 - mapLock) + mapZ * mapLock;
+      var preLogoY = mappedY * (1 - knotLock) + knotY * knotLock;
+      var preLogoX = mappedX * (1 - knotLock) + knotX * knotLock;
+      var preLogoZ = mappedZ * (1 - knotLock) + knotZ * knotLock;
+
+      field.rotation.y = preLogoY * (1 - logoLock) + logoY * logoLock;
+      field.rotation.x = preLogoX * (1 - logoLock) + logoX * logoLock;
+      field.rotation.z = preLogoZ * (1 - logoLock) + logoZ * logoLock;
 
       // Repulsion: unproject the cursor onto the field's own space.
       if (hasPointer && !COARSE) {
@@ -545,7 +861,7 @@
         raw.multiplyScalar(-camera.position.z / raw.z).add(camera.position);
         field.worldToLocal(raw);
         mouseWorld.lerp(raw, 0.18);
-        uniforms.uMouseForce.value += (1.5 - uniforms.uMouseForce.value) * 0.06;
+        uniforms.uMouseForce.value += (0.9 - uniforms.uMouseForce.value) * 0.06;
       } else {
         uniforms.uMouseForce.value += (0 - uniforms.uMouseForce.value) * 0.06;
       }
@@ -564,10 +880,12 @@
         camera.updateProjectionMatrix();
         renderer.setSize(window.innerWidth, window.innerHeight);
         uniforms.uScale.value = renderer.domElement.height * 0.5;
+        updateHome();
+        updateMarkHome();
       });
     }, { passive: true });
 
-    return field;
+    return { field: field, ready: sculptureReady };
   }
 
   /* ------------------------------------------------------------
@@ -652,7 +970,6 @@
     document.querySelectorAll('.work__item').forEach(function (item) {
       var card = item.querySelector('.work__card');
       var stage = item.querySelector('.work__stage');
-      var glare = item.querySelector('.work__glare');
       if (!card || !stage) return;
 
       var raf = null;
@@ -667,10 +984,6 @@
         card.style.setProperty('--ry', ((px - 0.5) * 13).toFixed(2) + 'deg');
         card.style.setProperty('--rx', ((0.5 - py) * 9).toFixed(2) + 'deg');
 
-        if (glare) {
-          glare.style.setProperty('--mx', (px * 100).toFixed(1) + '%');
-          glare.style.setProperty('--my', (py * 100).toFixed(1) + '%');
-        }
       }
 
       item.addEventListener('mouseenter', function () {
@@ -779,12 +1092,28 @@
      ------------------------------------------------------------ */
 
   function boot() {
-    initReveals();
-    initForge();
+    setLoaderProgress(12, 'Iniciando a forja');
+    var forge = initForge();
+    setLoaderProgress(forge ? 52 : 42, forge ? 'Escultura pronta' : 'Modo essencial');
+    if (!forge) document.documentElement.classList.add('no-forge');
+    if (forge && forge.ready) {
+      forge.ready.then(function (ok) {
+        if (!ok) document.documentElement.classList.add('no-logo-sculpture');
+      });
+    }
+
     initTilt();
     initCapLight();
     initCursor();
     initNav();
+
+    Promise.all([
+      waitForFonts(),
+      waitForLoaderMark(),
+      waitForWarmFrames(),
+      waitForMarkSculpture(forge),
+      wait(REDUCED ? 160 : 620)
+    ]).then(releaseLoader, releaseLoader);
   }
 
   if (document.readyState === 'loading') {

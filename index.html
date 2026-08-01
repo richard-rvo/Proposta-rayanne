@@ -14,6 +14,7 @@
   <meta name="twitter:card" content="summary_large_image" />
 
   <link rel="icon" type="image/png" href="assets/logo-gradient.png" />
+  <link rel="preload" as="image" href="assets/logo-gradient.png" />
 
   <link rel="preconnect" href="https://api.fontshare.com" />
   <link rel="preconnect" href="https://cdn.fontshare.com" crossorigin />
@@ -24,11 +25,33 @@
   <link rel="stylesheet" href="styles.css" />
 
   <script>
-    // Marks JS as live so reveal states never trap content on a failed load.
-    document.documentElement.classList.add('js');
+    // The loader only exists with JavaScript. If a CDN stalls, the page is
+    // released automatically and all content falls back to its static state.
+    document.documentElement.classList.add('js', 'is-loading');
+    window.__rvLoaderFailsafe = window.setTimeout(function () {
+      document.documentElement.classList.remove('is-loading', 'js');
+    }, 5500);
   </script>
 </head>
 <body>
+
+  <div class="loader" role="status" aria-live="polite" aria-label="Preparando a experiência">
+    <div class="loader__frame">
+      <div class="loader__brand">
+        <img class="loader__mark" src="assets/logo-gradient.png" alt="" width="54" height="54" />
+        <span class="loader__word">RV</span>
+      </div>
+
+      <div class="loader__readout">
+        <span class="loader__label" data-loader-label>Preparando a forja</span>
+        <span class="loader__value" data-loader-progress>00</span>
+      </div>
+
+      <div class="loader__track" aria-hidden="true">
+        <span class="loader__fill"></span>
+      </div>
+    </div>
+  </div>
 
   <div class="atmosphere" aria-hidden="true">
     <canvas id="forge-canvas"></canvas>
@@ -64,7 +87,7 @@
       <!-- ============ HERO ============ -->
       <section class="hero">
         <div class="wrap hero__grid">
-          <div>
+          <div class="hero__copy">
             <p class="label label--ember reveal">Produtos digitais sob medida</p>
 
             <h1 class="display hero__head">
@@ -91,6 +114,8 @@
               </a>
             </div>
           </div>
+
+          <div class="hero__visual" aria-hidden="true"></div>
         </div>
 
         <div class="wrap hero__readout reveal">
@@ -172,7 +197,6 @@
               <a class="work__card" href="https://examinutri.vercel.app/" target="_blank" rel="noopener noreferrer">
                 <div class="work__stage">
                   <img class="work__shot" src="assets/work/examin.jpg" alt="Examin — leitura de exame laboratorial com marcadores organizados para revisão" loading="lazy" width="1800" height="931" />
-                  <span class="work__glare"></span>
                   <span class="work__visit">
                     Visitar
                     <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true">
@@ -194,7 +218,6 @@
               <a class="work__card" href="https://temporefleto.com.br/" target="_blank" rel="noopener noreferrer">
                 <div class="work__stage">
                   <img class="work__shot" src="assets/work/refleto.jpg" alt="Tempo Refleto — painel do psicólogo com registros de pensamento do paciente" loading="lazy" width="1800" height="931" />
-                  <span class="work__glare"></span>
                   <span class="work__visit">
                     Visitar
                     <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true">
@@ -216,7 +239,6 @@
               <a class="work__card" href="https://app.sabrinamabili.com.br/" target="_blank" rel="noopener noreferrer">
                 <div class="work__stage">
                   <img class="work__shot" src="assets/work/sabrina.jpg" alt="Sabrina Amabili — painel da nutricionista com score e comparativo entre fichas do paciente" loading="lazy" width="1800" height="934" />
-                  <span class="work__glare"></span>
                   <span class="work__visit">
                     Visitar
                     <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true">
@@ -238,7 +260,6 @@
               <a class="work__card" href="https://pre-consulta-sabrina.vercel.app/" target="_blank" rel="noopener noreferrer">
                 <div class="work__stage work__stage--free">
                   <img class="work__shot" src="assets/work/preconsulta.png" alt="Pré-Consulta — ficha de anamnese que o paciente preenche pelo celular" loading="lazy" width="760" height="1549" />
-                  <span class="work__glare"></span>
                   <span class="work__visit">
                     Visitar
                     <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true">
@@ -409,30 +430,36 @@
 
       <!-- ============ CONTATO ============ -->
       <section class="close" id="contato">
-        <div class="wrap">
-          <p class="label label--ember label--bare reveal" style="justify-content:center;width:100%">Próximo passo</p>
+        <div class="wrap close__grid">
+          <div class="close__copy">
+            <p class="label label--ember label--bare reveal">Próximo passo</p>
 
-          <h2 class="h-lg close__head reveal">
-            Me conta o que está <span class="molten">travando?</span>
-          </h2>
+            <h2 class="h-lg close__head reveal">
+              Me conta o que está <span class="molten">travando?</span>
+            </h2>
 
-          <p class="lede close__lede reveal">
-            Descreva a sua rotina, o que mais toma tempo e o prazo que você tem
-            em mente. Eu respondo com um diagnóstico honesto — e um caminho, se
-            fizer sentido.
-          </p>
+            <p class="lede close__lede reveal">
+              Descreva a sua rotina, o que mais toma tempo e o prazo que você tem
+              em mente. Eu respondo com um diagnóstico honesto — e um caminho, se
+              fizer sentido.
+            </p>
 
-          <div class="close__actions reveal">
-            <a href="mailto:richardvieirarvo@gmail.com?subject=Projeto%20—%20RV" class="btn btn--ember">
-              Começar uma conversa
-              <svg class="btn__arrow" width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-                <path d="M1 11L11 1M11 1H3M11 1V9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </a>
-            <a href="#trabalho" class="btn btn--ghost">
-              <span class="btn__line"></span>
-              Rever o trabalho
-            </a>
+            <div class="close__actions reveal">
+              <a href="mailto:richardvieirarvo@gmail.com?subject=Projeto%20—%20RV" class="btn btn--ember">
+                Começar uma conversa
+                <svg class="btn__arrow" width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                  <path d="M1 11L11 1M11 1H3M11 1V9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </a>
+              <a href="#trabalho" class="btn btn--ghost">
+                <span class="btn__line"></span>
+                Rever o trabalho
+              </a>
+            </div>
+          </div>
+
+          <div class="close__visual" aria-hidden="true">
+            <img class="close__mark-fallback" src="assets/logo-gradient.png" alt="" width="342" height="291" />
           </div>
         </div>
       </section>
