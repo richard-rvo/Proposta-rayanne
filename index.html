@@ -3,171 +3,487 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>RV — Desenvolvimento de Soluções Inteligentes</title>
-  <meta name="description" content="RV: Empresa de engenharia e desenvolvimento de soluções inteligentes. IA, Web Apps, e Automação Industrial." />
+  <title>RV — Engenharia de Software Inteligente</title>
+  <meta name="description" content="RV constrói inteligência artificial aplicada, produtos web de alto nível e automação industrial — com o rigor de quem programa sistemas que não podem parar." />
+  <meta name="theme-color" content="#000000" />
+
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="RV — Engenharia de Software Inteligente" />
+  <meta property="og:description" content="IA aplicada, produtos web de alto nível e automação industrial." />
+  <meta property="og:image" content="assets/logo-gradient.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+
   <link rel="icon" type="image/png" href="assets/logo-gradient.png" />
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+
+  <link rel="preconnect" href="https://api.fontshare.com" />
+  <link rel="preconnect" href="https://cdn.fontshare.com" crossorigin />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://api.fontshare.com/v2/css?f%5B%5D=switzer@200,300,400,500,600&display=swap" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap" />
   <link rel="stylesheet" href="styles.css" />
+
+  <script>
+    // Marks JS as live so reveal states never trap content on a failed load.
+    document.documentElement.classList.add('js');
+  </script>
 </head>
-<body class="dark-theme">
-  <!-- 3D Canvas Background -->
-  <canvas id="hero-3d-canvas"></canvas>
+<body>
 
-  <nav class="nav">
-    <div class="container nav-inner">
-      <a href="#top" class="brand magnetic-btn" aria-label="RV Logo">
-        <img src="assets/logo-gradient.png" alt="RV" />
-        <span class="brand-text">RV</span>
-      </a>
-      <div class="nav-links">
-        <a href="#solucoes" class="magnetic-btn">Soluções</a>
-        <a href="#projetos" class="magnetic-btn">Projetos</a>
+  <!-- The void: particle forge, vignette -->
+  <div class="atmosphere" aria-hidden="true">
+    <canvas id="forge-canvas"></canvas>
+  </div>
+  <div class="grain" aria-hidden="true"></div>
+
+  <div class="cursor" aria-hidden="true"></div>
+  <div class="cursor__dot" aria-hidden="true"></div>
+
+  <div class="shell">
+
+    <!-- ============ NAV ============ -->
+    <header class="nav" id="nav">
+      <div class="wrap nav__inner">
+        <a href="#top" class="brand" aria-label="RV — início">
+          <img class="brand__mark" src="assets/logo-gradient.png" alt="" width="34" height="34" />
+          <span class="brand__word">RV</span>
+          <span class="brand__sub">Engenharia</span>
+        </a>
+
+        <nav class="nav__links" aria-label="Navegação principal">
+          <a class="nav__link" href="#metodo">Método</a>
+          <a class="nav__link" href="#capacidades">Capacidades</a>
+          <a class="nav__link" href="#trabalho">Trabalho</a>
+          <a class="nav__link" href="#processo">Processo</a>
+        </nav>
+
+        <a href="#contato" class="btn btn--ember nav__cta">
+          Falar com a RV
+        </a>
       </div>
-      <a href="#contato" class="btn btn-primary magnetic-btn">Fale Conosco</a>
-    </div>
-  </nav>
+    </header>
 
-  <main>
-    <section class="hero" id="top">
-      <div class="container hero-content">
-        <div class="eyebrow reveal-text">Engenharia de Sistemas Inteligentes</div>
-        <h1 class="reveal-text">
-          Soluções de Software <br/>
-          <span>Guiadas por IA.</span>
-        </h1>
-        <p class="lede reveal-text">
-          Construímos sistemas inteligentes, produtos web premium e automações industriais de alta precisão para o seu negócio.
-        </p>
-        <div class="hero-actions reveal-fade">
-          <a href="#projetos" class="btn btn-primary magnetic-btn">Explorar Projetos</a>
-          <a href="#solucoes" class="btn btn-secondary magnetic-btn">Nossas Capacidades</a>
-        </div>
-      </div>
-    </section>
+    <main id="top">
 
-    <section class="section" id="solucoes">
-      <div class="container">
-        <div class="section-header reveal-fade">
-          <div class="eyebrow">Expertise</div>
-          <h2>Ecossistema Tecnológico.</h2>
-          <p>Desenvolvemos produtos robustos integrando o que há de mais moderno em tecnologia.</p>
-        </div>
+      <!-- ============ HERO ============ -->
+      <section class="hero">
+        <div class="wrap hero__grid">
+          <div>
+            <p class="label label--ember reveal">Engenharia de sistemas inteligentes</p>
 
-        <div class="capabilities-grid">
-          <div class="capability-card reveal-fade">
-            <div class="cap-icon">🧠</div>
-            <h3>Inteligência Artificial</h3>
-            <p>Implementação de LLMs, agentes autônomos e RAG para automação de processos de tomada de decisão e análise de dados complexos.</p>
+            <h1 class="display hero__head">
+              <span class="line reveal-line"><span>Engenharia</span></span>
+              <span class="line reveal-line"><span class="molten">que pensa.</span></span>
+            </h1>
+
+            <p class="lede hero__lede reveal">
+              Inteligência artificial aplicada, produtos web de alto nível e automação
+              industrial — construídos com o rigor de quem programa sistemas que
+              não podem parar.
+            </p>
+
+            <div class="hero__actions reveal">
+              <a href="#trabalho" class="btn btn--ember">
+                Ver o trabalho
+                <svg class="btn__arrow" width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                  <path d="M1 11L11 1M11 1H3M11 1V9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </a>
+              <a href="#capacidades" class="btn btn--ghost">
+                <span class="btn__line"></span>
+                O que construímos
+              </a>
+            </div>
           </div>
-          <div class="capability-card reveal-fade">
-            <div class="cap-icon">⚡️</div>
-            <h3>Web Apps Premium</h3>
-            <p>Sistemas escaláveis e interfaces incríveis com tecnologias de ponta, focadas em UX de alto nível e performance absoluta.</p>
+        </div>
+
+        <div class="wrap hero__readout reveal">
+          <div class="readout">
+            <div class="readout__item">
+              <span class="readout__k">Frentes</span>
+              <span class="readout__v">IA · Web · Automação</span>
+            </div>
+            <div class="readout__item">
+              <span class="readout__k">Entrega</span>
+              <span class="readout__v">Do banco à interface</span>
+            </div>
+            <div class="readout__item">
+              <span class="readout__k">Status</span>
+              <span class="readout__v"><i class="dot"></i>Aberto para novos projetos</span>
+            </div>
           </div>
-          <div class="capability-card reveal-fade">
-            <div class="cap-icon">⚙️</div>
-            <h3>Automação Industrial</h3>
-            <p>Lógica de controle aplicada ao software. Trazemos o rigor, segurança e resiliência do chão de fábrica para os seus sistemas corporativos.</p>
+
+          <div class="scroll-cue">
+            <span class="scroll-cue__track"></span>
+            <span>Rolar</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ TICKER ============ -->
+      <div class="ticker" aria-hidden="true">
+        <div class="ticker__row">
+          <div class="ticker__group">
+            <span class="ticker__item">Python</span>
+            <span class="ticker__item">TypeScript</span>
+            <span class="ticker__item">React</span>
+            <span class="ticker__item">Next.js</span>
+            <span class="ticker__item">LLM &amp; RAG</span>
+            <span class="ticker__item">Agentes autônomos</span>
+            <span class="ticker__item">Supabase</span>
+            <span class="ticker__item">PostgreSQL</span>
+            <span class="ticker__item">Node</span>
+            <span class="ticker__item">CLP &amp; SCADA</span>
+            <span class="ticker__item">IoT industrial</span>
+            <span class="ticker__item">Three.js</span>
+            <span class="ticker__item">Docker</span>
+            <span class="ticker__item">Vercel</span>
+          </div>
+          <div class="ticker__group">
+            <span class="ticker__item">Python</span>
+            <span class="ticker__item">TypeScript</span>
+            <span class="ticker__item">React</span>
+            <span class="ticker__item">Next.js</span>
+            <span class="ticker__item">LLM &amp; RAG</span>
+            <span class="ticker__item">Agentes autônomos</span>
+            <span class="ticker__item">Supabase</span>
+            <span class="ticker__item">PostgreSQL</span>
+            <span class="ticker__item">Node</span>
+            <span class="ticker__item">CLP &amp; SCADA</span>
+            <span class="ticker__item">IoT industrial</span>
+            <span class="ticker__item">Three.js</span>
+            <span class="ticker__item">Docker</span>
+            <span class="ticker__item">Vercel</span>
           </div>
         </div>
       </div>
-    </section>
 
-    <section class="section" id="projetos">
-      <div class="container">
-        <div class="section-header reveal-fade">
-          <div class="eyebrow">Nosso Trabalho</div>
-          <h2>Projetos em Destaque.</h2>
-          <p>Algumas de nossas construções mais recentes e impactantes.</p>
+      <!-- ============ MANIFESTO ============ -->
+      <section class="section" id="metodo">
+        <div class="wrap manifesto__grid">
+          <div>
+            <p class="label reveal">Método</p>
+            <h2 class="h-lg reveal">
+              Do chão de fábrica ao modelo de linguagem.
+            </h2>
+          </div>
+
+          <div class="manifesto__body">
+            <p class="reveal">
+              Automação industrial ensina uma coisa antes de qualquer outra:
+              <strong>o sistema vai falhar</strong> — a única pergunta é se você
+              projetou para isso.
+            </p>
+            <p class="reveal">
+              Trazemos essa disciplina para o software. Modelagem de dados feita
+              antes da primeira tela. Pontos de falha mapeados antes do deploy.
+              Nada de <em>demo</em> bonita que quebra no primeiro cliente real.
+            </p>
+            <p class="reveal">
+              O resultado são produtos que aguentam operação de verdade — e que
+              usam IA onde ela resolve um problema, não onde ela decora um slide.
+            </p>
+
+            <div class="sig reveal">
+              <img class="sig__mark" src="assets/logo-gradient.png" alt="" width="34" height="34" />
+              <div>
+                <span class="sig__name">Richard Vieira</span>
+                <span class="sig__role">Fundador · RV</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ CAPACIDADES ============ -->
+      <section class="section" id="capacidades">
+        <div class="wrap">
+          <div class="head">
+            <div>
+              <p class="label reveal">Capacidades</p>
+              <h2 class="h reveal">Três frentes, uma engenharia só.</h2>
+            </div>
+            <p class="head__lede reveal">
+              Não terceirizamos as partes difíceis. Banco, API, interface e a
+              lógica que amarra tudo saem da mesma cabeça.
+            </p>
+          </div>
+
+          <div class="caps">
+            <article class="cap reveal">
+              <span class="idx cap__idx">01</span>
+              <h3 class="cap__title">Inteligência<em>Artificial</em></h3>
+              <div class="cap__body">
+                <p>
+                  LLMs, agentes autônomos e RAG aplicados a decisões reais:
+                  extração auditável de documentos, análise de dados clínicos e
+                  automação de processos que hoje dependem de leitura humana.
+                </p>
+                <div class="tags">
+                  <span class="tag">LLM</span>
+                  <span class="tag">RAG</span>
+                  <span class="tag">Agentes</span>
+                  <span class="tag">Extração de documentos</span>
+                </div>
+              </div>
+            </article>
+
+            <article class="cap reveal">
+              <span class="idx cap__idx">02</span>
+              <h3 class="cap__title">Produtos<em>Web</em></h3>
+              <div class="cap__body">
+                <p>
+                  Sistemas escaláveis e interfaces de alto nível. Painéis
+                  clínicos, plataformas SaaS e fluxos de captação — com atenção
+                  obsessiva a performance, acessibilidade e usabilidade real.
+                </p>
+                <div class="tags">
+                  <span class="tag">React</span>
+                  <span class="tag">Next.js</span>
+                  <span class="tag">Supabase</span>
+                  <span class="tag">TypeScript</span>
+                </div>
+              </div>
+            </article>
+
+            <article class="cap reveal">
+              <span class="idx cap__idx">03</span>
+              <h3 class="cap__title">Automação<em>Industrial</em></h3>
+              <div class="cap__body">
+                <p>
+                  Lógica de controle aplicada ao software corporativo.
+                  Intertravamentos, redundância e telemetria — o rigor do chão de
+                  fábrica levado para os sistemas que sustentam o seu negócio.
+                </p>
+                <div class="tags">
+                  <span class="tag">CLP</span>
+                  <span class="tag">SCADA</span>
+                  <span class="tag">IoT</span>
+                  <span class="tag">Integração</span>
+                </div>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ TRABALHO ============ -->
+      <section class="section" id="trabalho">
+        <div class="wrap">
+          <div class="head">
+            <div>
+              <p class="label reveal">Trabalho</p>
+              <h2 class="h reveal">Produtos no ar, com usuários reais.</h2>
+            </div>
+            <p class="head__lede reveal">
+              Quatro sistemas em produção. Todos construídos do zero — modelagem,
+              backend, interface e deploy.
+            </p>
+          </div>
+
+          <div class="work">
+
+            <article class="work__item reveal">
+              <a class="work__card" href="https://examinutri.vercel.app/" target="_blank" rel="noopener noreferrer">
+                <div class="work__stage">
+                  <img class="work__shot" src="assets/work/examin.jpg" alt="Examin — análise de exame laboratorial com marcadores e raciocínio técnico" loading="lazy" width="1800" height="931" />
+                  <span class="work__glare"></span>
+                  <span class="work__visit">
+                    Visitar
+                    <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                      <path d="M1 11L11 1M11 1H3M11 1V9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  </span>
+                </div>
+                <div class="work__meta">
+                  <div>
+                    <h3 class="work__name">Examin</h3>
+                    <p class="work__desc">Leitura e revisão auditável de exames laboratoriais, marcador a marcador.</p>
+                  </div>
+                  <span class="work__tag">SaaS clínico</span>
+                </div>
+              </a>
+            </article>
+
+            <article class="work__item reveal">
+              <a class="work__card" href="https://temporefleto.com.br/" target="_blank" rel="noopener noreferrer">
+                <div class="work__stage">
+                  <img class="work__shot" src="assets/work/refleto.jpg" alt="Tempo Refleto — painel do psicólogo com registros de pensamento e check-ins" loading="lazy" width="1800" height="931" />
+                  <span class="work__glare"></span>
+                  <span class="work__visit">
+                    Visitar
+                    <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                      <path d="M1 11L11 1M11 1H3M11 1V9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  </span>
+                </div>
+                <div class="work__meta">
+                  <div>
+                    <h3 class="work__name">Tempo Refleto</h3>
+                    <p class="work__desc">Acompanhamento terapêutico com registros de pensamento e evolução emocional.</p>
+                  </div>
+                  <span class="work__tag">Saúde mental</span>
+                </div>
+              </a>
+            </article>
+
+            <article class="work__item reveal">
+              <a class="work__card" href="https://app.sabrinamabili.com.br/" target="_blank" rel="noopener noreferrer">
+                <div class="work__stage">
+                  <img class="work__shot" src="assets/work/sabrina.jpg" alt="Sabrina Amabili — painel clínico com score nutricional e comparativo entre fichas" loading="lazy" width="1800" height="934" />
+                  <span class="work__glare"></span>
+                  <span class="work__visit">
+                    Visitar
+                    <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                      <path d="M1 11L11 1M11 1H3M11 1V9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  </span>
+                </div>
+                <div class="work__meta">
+                  <div>
+                    <h3 class="work__name">Sabrina Amabili</h3>
+                    <p class="work__desc">Painel clínico com score nutricional, comparativo e evolução por ficha.</p>
+                  </div>
+                  <span class="work__tag">Plataforma</span>
+                </div>
+              </a>
+            </article>
+
+            <article class="work__item reveal">
+              <a class="work__card" href="https://pre-consulta-sabrina.vercel.app/" target="_blank" rel="noopener noreferrer">
+                <div class="work__stage work__stage--free">
+                  <img class="work__shot" src="assets/work/preconsulta.png" alt="Pré-Consulta — ficha de anamnese guiada em sete passos no celular" loading="lazy" width="760" height="1549" />
+                  <span class="work__glare"></span>
+                  <span class="work__visit">
+                    Visitar
+                    <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                      <path d="M1 11L11 1M11 1H3M11 1V9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  </span>
+                </div>
+                <div class="work__meta">
+                  <div>
+                    <h3 class="work__name">Pré-Consulta</h3>
+                    <p class="work__desc">Anamnese guiada em sete passos, direto no celular do paciente.</p>
+                  </div>
+                  <span class="work__tag">Mobile web</span>
+                </div>
+              </a>
+            </article>
+
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ PROCESSO ============ -->
+      <section class="section" id="processo">
+        <div class="wrap">
+          <div class="head">
+            <div>
+              <p class="label reveal">Processo</p>
+              <h2 class="h reveal">Quatro etapas, sem surpresa no fim.</h2>
+            </div>
+            <p class="head__lede reveal">
+              Você acompanha cada entrega. Nada de sumir por três meses e voltar
+              com algo que não era o combinado.
+            </p>
+          </div>
+
+          <div class="stats">
+            <div class="stat reveal">
+              <span class="stat__n">01</span>
+              <span class="stat__k">Diagnóstico — entender a operação antes de escrever qualquer linha</span>
+            </div>
+            <div class="stat reveal">
+              <span class="stat__n">02</span>
+              <span class="stat__k">Arquitetura — modelagem de dados, fluxos e pontos de falha</span>
+            </div>
+            <div class="stat reveal">
+              <span class="stat__n">03</span>
+              <span class="stat__k">Construção — entregas curtas e funcionais, revisadas com você</span>
+            </div>
+            <div class="stat reveal">
+              <span class="stat__n">04</span>
+              <span class="stat__k">Operação — deploy, monitoramento e evolução contínua</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ CONTATO ============ -->
+      <section class="close" id="contato">
+        <div class="wrap">
+          <p class="label label--ember label--bare reveal" style="justify-content:center;width:100%">Próximo passo</p>
+
+          <h2 class="h-lg close__head reveal">
+            Tem um problema que ninguém <span class="molten">resolveu ainda?</span>
+          </h2>
+
+          <p class="lede close__lede reveal">
+            Me conte a operação, o gargalo e o prazo. Você recebe um diagnóstico
+            honesto — inclusive se a resposta for “você não precisa de software
+            para isso”.
+          </p>
+
+          <div class="close__actions reveal">
+            <a href="mailto:richardvieirarvo@gmail.com?subject=Projeto%20—%20RV" class="btn btn--ember">
+              Iniciar conversa
+              <svg class="btn__arrow" width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                <path d="M1 11L11 1M11 1H3M11 1V9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </a>
+            <a href="#trabalho" class="btn btn--ghost">
+              <span class="btn__line"></span>
+              Rever o trabalho
+            </a>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- ============ FOOTER ============ -->
+    <footer class="footer">
+      <div class="wrap">
+        <div class="footer__top">
+          <a href="#top" class="brand">
+            <img class="brand__mark" src="assets/logo-gradient.png" alt="" width="34" height="34" />
+            <span class="brand__word">RV</span>
+          </a>
+
+          <div class="footer__links">
+            <div class="footer__col">
+              <span class="footer__ck">Navegar</span>
+              <a class="footer__link" href="#metodo">Método</a>
+              <a class="footer__link" href="#capacidades">Capacidades</a>
+              <a class="footer__link" href="#trabalho">Trabalho</a>
+              <a class="footer__link" href="#processo">Processo</a>
+            </div>
+
+            <div class="footer__col">
+              <span class="footer__ck">Projetos</span>
+              <a class="footer__link" href="https://examinutri.vercel.app/" target="_blank" rel="noopener noreferrer">Examin</a>
+              <a class="footer__link" href="https://temporefleto.com.br/" target="_blank" rel="noopener noreferrer">Tempo Refleto</a>
+              <a class="footer__link" href="https://app.sabrinamabili.com.br/" target="_blank" rel="noopener noreferrer">Sabrina Amabili</a>
+              <a class="footer__link" href="https://pre-consulta-sabrina.vercel.app/" target="_blank" rel="noopener noreferrer">Pré-Consulta</a>
+            </div>
+
+            <div class="footer__col">
+              <span class="footer__ck">Contato</span>
+              <a class="footer__link" href="mailto:richardvieirarvo@gmail.com">richardvieirarvo@gmail.com</a>
+            </div>
+          </div>
         </div>
 
-        <div class="projects-grid">
-          <!-- Project 1 -->
-          <a href="https://app.sabrinamabili.com.br/" target="_blank" class="project-card reveal-fade magnetic-card">
-            <div class="project-image-wrapper">
-              <div class="project-overlay">
-                <span>Visitar Projeto ↗</span>
-              </div>
-              <img src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=800&q=80" alt="Sabrina Mabili" />
-            </div>
-            <div class="project-info">
-              <h3>Sabrina Mabili</h3>
-              <p>Plataforma web inteligente e interativa.</p>
-            </div>
-          </a>
-
-          <!-- Project 2 -->
-          <a href="https://temporefleto.com.br/" target="_blank" class="project-card reveal-fade magnetic-card">
-            <div class="project-image-wrapper">
-              <div class="project-overlay">
-                <span>Visitar Projeto ↗</span>
-              </div>
-              <img src="https://images.unsplash.com/photo-1542744173-8e7e53415bb0?auto=format&fit=crop&w=800&q=80" alt="Tempo Refleto" />
-            </div>
-            <div class="project-info">
-              <h3>Tempo Refleto</h3>
-              <p>Solução digital sob medida e inovadora.</p>
-            </div>
-          </a>
-
-          <!-- Project 3 -->
-          <a href="https://pre-consulta-sabrina.vercel.app/" target="_blank" class="project-card reveal-fade magnetic-card">
-            <div class="project-image-wrapper">
-              <div class="project-overlay">
-                <span>Visitar Projeto ↗</span>
-              </div>
-              <img src="https://images.unsplash.com/photo-1505751172876-fa1923c5c528?auto=format&fit=crop&w=800&q=80" alt="Pré-Consulta" />
-            </div>
-            <div class="project-info">
-              <h3>Pré-Consulta Sabrina</h3>
-              <p>Automação inteligente e onboarding de pacientes.</p>
-            </div>
-          </a>
-
-          <!-- Project 4 -->
-          <a href="https://examinutri.vercel.app/" target="_blank" class="project-card reveal-fade magnetic-card">
-            <div class="project-image-wrapper">
-              <div class="project-overlay">
-                <span>Visitar Projeto ↗</span>
-              </div>
-              <img src="https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&w=800&q=80" alt="Examinutri" />
-            </div>
-            <div class="project-info">
-              <h3>Examinutri</h3>
-              <p>SaaS especializado para análises e diagnósticos.</p>
-            </div>
-          </a>
+        <div class="footer__bottom">
+          <span>© 2026 RV · Engenharia de software</span>
+          <span>Construído no Brasil</span>
         </div>
       </div>
-    </section>
+    </footer>
 
-    <section class="section cta-section" id="contato">
-      <div class="container">
-        <div class="cta-box reveal-fade">
-          <h2>Pronto para elevar o seu negócio?</h2>
-          <p>Transformamos problemas complexos em sistemas inteligentes e eficientes. Agende uma reunião para discutirmos suas necessidades operacionais.</p>
-          <a href="mailto:contato@r.studio" class="btn btn-primary magnetic-btn" style="margin-top: 2rem;">Inicie seu Projeto</a>
-        </div>
-      </div>
-    </section>
-  </main>
+  </div>
 
-  <footer class="footer">
-    <div class="container footer-inner">
-      <a href="#top" class="brand">
-        <img src="assets/logo-gradient.png" alt="RV Logo" />
-        <span class="brand-text">RV</span>
-      </a>
-      <div class="footer-meta">
-        <span>© 2026 RV Soluções Inteligentes</span>
-        <span>Engenharia & Software Avançado</span>
-      </div>
-    </div>
-  </footer>
-
-  <!-- Scripts -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
