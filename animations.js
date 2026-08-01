@@ -46,12 +46,15 @@
     '  p = mix(p, aLattice, clamp(uState - 1.0,  0.0, 1.0));',
     '  p = mix(p, aLogo,    clamp(uState - 2.0,  0.0, 1.0));',
 
-    // Organic drift. Calms down as the field snaps into the logo.
+    // Organic drift. Kept tight while the neural mass is on screen — anything
+    // larger smears the sulci back into a cloud — then opened up for the
+    // looser shapes, and stilled as the field snaps into the logo.
     '  float settle = 1.0 - clamp(uState - 2.0, 0.0, 1.0) * 0.92;',
+    '  float drift = (0.05 + 0.11 * clamp(uState, 0.0, 1.0)) * settle;',
     '  float t = uTime;',
-    '  p.x += sin(t * 0.62 + aSeed * 6.283) * 0.13 * settle;',
-    '  p.y += cos(t * 0.71 + aSeed * 5.117) * 0.13 * settle;',
-    '  p.z += sin(t * 0.53 + aSeed * 4.331) * 0.13 * settle;',
+    '  p.x += sin(t * 0.62 + aSeed * 6.283) * drift;',
+    '  p.y += cos(t * 0.71 + aSeed * 5.117) * drift;',
+    '  p.z += sin(t * 0.53 + aSeed * 4.331) * drift;',
 
     // Cursor repulsion, in the system's local space.
     '  vec3 away = p - uMouse;',
@@ -155,27 +158,99 @@
 
     var TAU = Math.PI * 2;
 
+    /* Cortical ridge field. Returns ~0 in a sulcus, ~1 on a gyral crest.
+       Layered sinusoids at coprime-ish frequencies wander over the surface
+       instead of tiling like a single product would. */
+    function gyrus(x, y, z) {
+      var s = Math.sin(x * 2.6 + z * 1.3)
+        + Math.sin(z * 3.0 - y * 1.7) * 0.95
+        + Math.sin(y * 3.4 + x * 1.1) * 0.8;
+      return Math.pow(0.5 + 0.5 * Math.cos(s * 2.0), 2.2);
+    }
+
+    // Anatomy, in the cerebrum's own frame: +z forward, +y up, +x right.
+    var A = 2.75, B = 3.25, C = 4.7;    // cerebrum semi-axes
+    var NS = 0.88;                      // overall scale of the neural mass
+    var STEM = 0.035, CEREB = 0.15;     // share of particles per structure
+
     for (var i = 0; i < COUNT; i++) {
       var i3 = i * 3;
 
-      /* --- Shape 0: neural cloud. Two hemispheres with sulci folds. ---
-         Weighted toward a shell rather than the volume: a uniform-volume
-         cloud reads as dust, while a shell lets the folds actually show. */
-      var u = Math.random();
-      var v = Math.random();
-      var theta = u * TAU;
-      var phi = Math.acos(2 * v - 1);
-      var r = 3.15 + Math.pow(Math.random(), 0.55) * 1.05;
-      r += Math.sin(theta * 8) * Math.cos(phi * 8) * 0.52;
+      /* --- Shape 0: the neural mass. ---
+         Three structures, because a lone ellipsoid reads as a fuzzy blob no
+         matter how it is folded: a cerebrum split by a deep midline fissure,
+         a finely-banded cerebellum at the lower rear, and a short stem.
+         Particles are rejection-sampled toward the crests — with additive
+         points it is density contrast, not displacement, that draws the
+         folds. Sulci and the fissure become genuine dark valleys. */
+      var role = Math.random();
+      var g = 1, nx, ny, nz;
 
-      var nx = r * Math.sin(phi) * Math.cos(theta);
-      var ny = r * Math.sin(phi) * Math.sin(theta) * 0.76;
-      var nz = r * Math.cos(phi) * 1.08;
-      nx += nx > 0 ? 0.34 : -0.34;
+      if (role < STEM) {
+        // Brain stem: a short tapered tube dropping ahead of the cerebellum.
+        var sT = Math.random();
+        var sRad = (0.58 - sT * 0.24) * Math.sqrt(Math.random());
+        var sAng = Math.random() * TAU;
+        nx = Math.cos(sAng) * sRad;
+        ny = -2.0 - sT * 1.9;
+        nz = -1.3 + Math.sin(sAng) * sRad - sT * 0.35;
+        g = 0.5;
+      } else {
+        // Shared unit-sphere sampling for cerebrum and cerebellum.
+        var sx, sy, sz, accept, tries = 0;
+        var cerebellum = role < STEM + CEREB;
 
-      neural[i3] = nx + (Math.random() - 0.5) * 0.22;
-      neural[i3 + 1] = ny + (Math.random() - 0.5) * 0.22;
-      neural[i3 + 2] = nz + (Math.random() - 0.5) * 0.22;
+        do {
+          var th = Math.random() * TAU;
+          var ph = Math.acos(2 * Math.random() - 1);
+          var sp = Math.sin(ph);
+          sx = sp * Math.cos(th);
+          sy = Math.cos(ph);
+          sz = sp * Math.sin(th);
+
+          if (cerebellum) {
+            // Folia: fine parallel bands, far tighter than cortical gyri.
+            g = Math.pow(0.5 + 0.5 * Math.cos(sy * 17 + sz * 5), 1.3);
+            accept = 0.18 + 0.82 * g;
+          } else {
+            g = gyrus(sx, sy, sz);
+            // The longitudinal fissure — the most legible cue in a front or
+            // top view. Thin the midline out, strongest over the crown.
+            var fis = Math.exp(-(sx * sx) / 0.012) * Math.min(1, Math.max(0, sy + 0.2) * 1.7);
+            accept = (0.08 + 0.92 * g) * (1 - 0.92 * fis);
+            // Carve the back-bottom notch the cerebellum sits in. Without this
+            // the two masses overlap and read as one lump.
+            var notch = Math.max(0, -sz - 0.1) * Math.max(0, -sy - 0.05) * 5.0;
+            accept *= Math.max(0.02, 1 - notch);
+          }
+          tries++;
+        } while (Math.random() > accept && tries < 7);
+
+        // Hollow shell: a filled volume washes the folds out.
+        var rr = 0.89 + Math.pow(Math.random(), 0.6) * 0.11;
+        rr *= 1 - (1 - g) * 0.17;
+
+        if (cerebellum) {
+          nx = sx * 1.5 * rr;
+          ny = -2.05 + sy * 1.0 * rr;
+          nz = -3.15 + sz * 1.45 * rr;
+        } else {
+          var fis2 = Math.exp(-(sx * sx) / 0.012) * Math.min(1, Math.max(0, sy + 0.2) * 1.7);
+          rr *= 1 - 0.2 * fis2;
+          nx = sx * A * rr;
+          ny = sy * B * rr;
+          nz = sz * C * rr;
+          nx += (sx >= 0 ? 0.15 : -0.15) * fis2;  // widen the cleft
+          if (ny < 0) ny *= 0.8;                  // brains are flat underneath
+          // Occipital taper: the back is lower and blunter than the forehead.
+          var zt = nz / C;
+          if (zt < 0) ny -= Math.pow(-zt, 2) * 0.55;
+        }
+      }
+
+      neural[i3] = (nx + (Math.random() - 0.5) * 0.1) * NS;
+      neural[i3 + 1] = (ny + (Math.random() - 0.5) * 0.1) * NS;
+      neural[i3 + 2] = (nz + (Math.random() - 0.5) * 0.1) * NS;
 
       /* --- Shape 1: gear. A toothed torus — the automation frame.
          Sized so the hole clears the text column: the ring frames copy against
@@ -204,9 +279,13 @@
       logo[i3 + 1] = neural[i3 + 1] * 2.4;
       logo[i3 + 2] = neural[i3 + 2] * 0.4;
 
-      sizes[i] = 0.012 + Math.random() * 0.034;
+      // Crests carry the larger, hotter particles; sulci stay cool and fine.
+      // Size does double duty as brightness under additive blending.
+      sizes[i] = (0.011 + Math.random() * 0.030) * (0.72 + 0.62 * g);
       seeds[i] = Math.random();
-      tints[i] = Math.random();
+      // Tint ramps light -> brand -> deep red, so crests must skew LOW to read
+      // as lit. Sparks stay scattered, like something firing.
+      tints[i] = Math.random() < 0.02 ? 0.98 : Math.pow(Math.random(), 1 + g * 1.1) * 0.93;
     }
 
     var geo = new THREE.BufferGeometry();
@@ -285,8 +364,18 @@
     img.src = 'assets/logo-orange.png';
 
     /* --- Placement: right of the headline on desktop, behind it on mobile --- */
-    function homeX() { return window.innerWidth < 900 ? 0 : 5.4; }
-    function homeY() { return window.innerWidth < 900 ? 1.6 : 0.2; }
+    // Park the mass against the right edge of the frame rather than at a fixed
+    // world offset: a constant x either clips on narrow desktops or drifts into
+    // the copy on wide ones.
+    function homeX() {
+      if (window.innerWidth < 900) return 0;
+      var halfW = Math.tan(camera.fov * Math.PI / 360) * camera.position.z * camera.aspect;
+      return Math.max(3.4, halfW - 4.9);
+    }
+    // On phones there is no free column, so the mass drops below the copy and
+    // sits further back — present as atmosphere, never over the headline.
+    function homeY() { return window.innerWidth < 900 ? -2.4 : 0.2; }
+    function homeZ() { return window.innerWidth < 900 ? -4.5 : 0; }
 
     var pointer = { x: 0, y: 0 };      // normalized -1..1
     var eased = { x: 0, y: 0 };
@@ -334,6 +423,8 @@
     var clock = new THREE.Clock();
     var running = true;
     var target = new THREE.Vector3();
+    var spinY = 0;
+    var prevT = 0;
 
     document.addEventListener('visibilitychange', function () {
       running = !document.hidden;
@@ -345,6 +436,8 @@
       requestAnimationFrame(frame);
 
       var t = clock.getElapsedTime();
+      var dt = Math.min(0.05, t - prevT);
+      prevT = t;
       uniforms.uTime.value = t;
 
       var state = stage.a + stage.b + stage.c;
@@ -377,14 +470,25 @@
       target.set(
         homeX() * (1 - toCenter) + eased.x * 0.85,
         homeY() * (1 - toCenter) + eased.y * 0.6,
-        -7.0 * stage.b * (1 - stage.c)
+        homeZ() * (1 - toCenter) - 7.0 * stage.b * (1 - stage.c)
       );
       field.position.lerp(target, 0.05);
 
+      // The neural state holds a readable three-quarter view, tipped just far
+      // enough forward to expose the midline fissure. Spinning it would average
+      // the folds back into the blob they came from — only the later shapes,
+      // which have no silhouette to protect, are allowed to turn.
       var spin = 1 - Math.min(1, stage.c * 1.4);
-      field.rotation.y += 0.0022 + 0.004 * stage.a;
-      field.rotation.x = (Math.sin(t * 0.22) * 0.12 + eased.y * 0.16) * spin;
-      field.rotation.z = eased.x * 0.05 * spin;
+      var morphing = Math.min(1, stage.a * 1.5);
+      var settled = 1 - morphing;
+      spinY += dt * 1.1 * morphing;
+
+      // Near side-on: the sagittal profile — frontal bulge, occipital taper,
+      // cerebellum and stem — is what makes a brain a brain. A front view just
+      // reads as a sphere with a slot in it.
+      field.rotation.y = settled * (-1.18 + Math.sin(t * 0.15) * 0.20) + spinY;
+      field.rotation.x = (settled * (0.14 + Math.sin(t * 0.19) * 0.05) + eased.y * 0.14) * spin;
+      field.rotation.z = eased.x * 0.04 * spin;
 
       // Repulsion: unproject the cursor onto the field's own space.
       if (hasPointer && !COARSE) {
