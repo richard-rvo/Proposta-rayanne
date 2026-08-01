@@ -214,7 +214,7 @@ main[id] { scroll-margin-top: clamp(5.5rem, 11vh, 7.5rem); }
    field happens to drift. */
 .lede,
 .head__lede,
-.manifesto__body p,
+.who__body p,
 .cap__body p,
 .work__desc,
 .readout__v,
@@ -646,38 +646,6 @@ main[id] { scroll-margin-top: clamp(5.5rem, 11vh, 7.5rem); }
 
 .ticker__item:hover { color: var(--bone); }
 
-/* ---------- 10. Manifesto ---------- */
-
-.manifesto__grid {
-  display: grid;
-  gap: clamp(2.5rem, 6vw, 5rem);
-  align-items: start;
-}
-
-@media (min-width: 900px) {
-  .manifesto__grid {
-    grid-template-columns: 1.25fr 1fr;
-  }
-}
-
-.manifesto__body {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-  padding-top: 0.75rem;
-}
-
-.manifesto__body p {
-  font-weight: 200;
-  color: var(--silver);
-  max-width: 44ch;
-}
-
-.manifesto__body strong {
-  font-weight: 400;
-  color: var(--bone);
-}
-
 .sig {
   display: flex;
   align-items: center;
@@ -708,6 +676,42 @@ main[id] { scroll-margin-top: clamp(5.5rem, 11vh, 7.5rem); }
   color: var(--dim);
   display: block;
   margin-top: 0.2rem;
+}
+
+/* ---------- 10b. Who ---------- */
+
+.who {
+  display: grid;
+  gap: clamp(2.5rem, 6vw, 5rem);
+  align-items: center;
+}
+
+@media (min-width: 900px) {
+  .who { grid-template-columns: 0.85fr 1fr; }
+}
+
+/* The portrait was graded so its studio backdrop is already near-black; the
+   mask carries the rest, so he emerges from the void instead of sitting in a
+   framed rectangle. No border, no shadow — same rule as everything else here. */
+.who__photo img {
+  width: 100%;
+  border-radius: var(--r);
+  -webkit-mask-image: linear-gradient(to bottom, #000 55%, rgba(0, 0, 0, 0.35) 84%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 55%, rgba(0, 0, 0, 0.35) 84%, transparent 100%);
+}
+
+.who__body {
+  display: flex;
+  flex-direction: column;
+  gap: 1.35rem;
+}
+
+.who__body .h-sm { margin-bottom: 0.5rem; }
+
+.who__body p {
+  font-weight: 200;
+  color: var(--silver);
+  max-width: 46ch;
 }
 
 /* ---------- 11. Capabilities ---------- */

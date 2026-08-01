@@ -3,7 +3,7 @@
    Motion layer.
 
    The particle field is one GPU-resident system carrying four
-   shapes at once (neural / gear / lattice / logo). Scroll blends
+   shapes at once (product / field / components / mark). Scroll blends
    between them in the vertex shader, so the CPU never touches
    per-particle math — that's what buys us ~16k particles instead
    of the ~3.5k a JS morph loop could afford.
@@ -22,15 +22,15 @@
      ------------------------------------------------------------ */
 
   var VERT = [
-    'attribute vec3 aGear;',
-    'attribute vec3 aLattice;',
+    'attribute vec3 aField;',
+    'attribute vec3 aGrid;',
     'attribute vec3 aLogo;',
     'attribute float aSize;',
     'attribute float aSeed;',
     'attribute float aTint;',
 
     'uniform float uTime;',
-    'uniform float uState;',   // 0 neural, 1 gear, 2 lattice, 3 logo
+    'uniform float uState;',   // 0 interface, 1 field, 2 component grid, 3 logo
     'uniform float uScale;',
     'uniform vec3  uMouse;',
     'uniform float uMouseForce;',
@@ -42,15 +42,15 @@
     'void main() {',
     // Chained blend: each stage takes over the previous one.
     '  vec3 p = position;',
-    '  p = mix(p, aGear,    clamp(uState,        0.0, 1.0));',
-    '  p = mix(p, aLattice, clamp(uState - 1.0,  0.0, 1.0));',
-    '  p = mix(p, aLogo,    clamp(uState - 2.0,  0.0, 1.0));',
+    '  p = mix(p, aField, clamp(uState,       0.0, 1.0));',
+    '  p = mix(p, aGrid,  clamp(uState - 1.0, 0.0, 1.0));',
+    '  p = mix(p, aLogo,  clamp(uState - 2.0, 0.0, 1.0));',
 
-    // Organic drift. Kept tight while the neural mass is on screen — anything
-    // larger smears the sulci back into a cloud — then opened up for the
-    // looser shapes, and stilled as the field snaps into the logo.
+    // Drift keyed to the emitter seed, so panels wander as rigid pieces and
+    // their edges stay sharp. Kept tight while the product is on screen, opened
+    // up for the looser shapes, and stilled as it snaps into the mark.
     '  float settle = 1.0 - clamp(uState - 2.0, 0.0, 1.0) * 0.92;',
-    '  float drift = (0.05 + 0.11 * clamp(uState, 0.0, 1.0)) * settle;',
+    '  float drift = (0.07 + 0.1 * clamp(uState, 0.0, 1.0)) * settle;',
     '  float t = uTime;',
     '  p.x += sin(t * 0.62 + aSeed * 6.283) * drift;',
     '  p.y += cos(t * 0.71 + aSeed * 5.117) * drift;',
@@ -148,151 +148,199 @@
     var isSmall = window.innerWidth < 900;
     var COUNT = REDUCED ? 3000 : (isSmall ? 6000 : 16000);
 
-    var neural = new Float32Array(COUNT * 3);
-    var gear = new Float32Array(COUNT * 3);
-    var lattice = new Float32Array(COUNT * 3);
-    var logo = new Float32Array(COUNT * 3);
+    var interfaceP = new Float32Array(COUNT * 3);
+    var fieldP = new Float32Array(COUNT * 3);
+    var gridP = new Float32Array(COUNT * 3);
+    var logoP = new Float32Array(COUNT * 3);
     var sizes = new Float32Array(COUNT);
     var seeds = new Float32Array(COUNT);
     var tints = new Float32Array(COUNT);
 
     var TAU = Math.PI * 2;
+    var tmp = [0, 0];
 
-    /* Cortical ridge field. Returns ~0 in a sulcus, ~1 on a gyral crest.
-       Layered sinusoids at coprime-ish frequencies wander over the surface
-       instead of tiling like a single product would. */
-    function gyrus(x, y, z) {
-      var s = Math.sin(x * 2.6 + z * 1.3)
-        + Math.sin(z * 3.0 - y * 1.7) * 0.95
-        + Math.sin(y * 3.4 + x * 1.1) * 0.8;
-      return Math.pow(0.5 + 0.5 * Math.cos(s * 2.0), 2.2);
+    /* ---- Emitters --------------------------------------------------------
+       Each shape is a list of emitters carrying a weight. Particles are dealt
+       out in proportion to that weight, so a long panel edge and a short label
+       rule end up with the same line density instead of the short one clotting.
+
+       Every emitter also carries its own seed. The drift in the vertex shader
+       keys off that seed, so a panel wanders as a rigid piece rather than
+       dissolving — which is the whole reason an interface can read here at all
+       where a per-particle jitter would just blur the edges away. */
+
+    function roundRect(x0, y0, x1, y1, rad) {
+      var w = x1 - x0, h = y1 - y0, per = 2 * (w + h);
+      return {
+        w: per,
+        seed: Math.random(),
+        z: 0,
+        s: function (out) {
+          var t = Math.random() * per, px, py;
+          if (t < w) { px = x0 + t; py = y0; }
+          else if ((t -= w) < h) { px = x1; py = y0 + t; }
+          else if ((t -= h) < w) { px = x1 - t; py = y1; }
+          else { px = x0; py = y1 - (t - w); }
+          // Project onto the rounded boundary. The corner radius is what makes
+          // these read as interface instead of as wireframe boxes.
+          var cx = Math.min(Math.max(px, x0 + rad), x1 - rad);
+          var cy = Math.min(Math.max(py, y0 + rad), y1 - rad);
+          var dx = px - cx, dy = py - cy;
+          var d = Math.sqrt(dx * dx + dy * dy);
+          if (d > 0.0001) { px = cx + dx / d * rad; py = cy + dy / d * rad; }
+          out[0] = px; out[1] = py;
+        }
+      };
     }
 
-    // Anatomy, in the cerebrum's own frame: +z forward, +y up, +x right.
-    var A = 2.75, B = 3.25, C = 4.7;    // cerebrum semi-axes
-    var NS = 0.88;                      // overall scale of the neural mass
-    var STEM = 0.035, CEREB = 0.15;     // share of particles per structure
+    function hLine(x0, x1, y) {
+      var w = x1 - x0;
+      return {
+        w: w, seed: Math.random(), z: 0,
+        s: function (out) { out[0] = x0 + Math.random() * w; out[1] = y; }
+      };
+    }
+
+    function pick(list, total) {
+      var r = Math.random() * total, acc = 0;
+      for (var k = 0; k < list.length; k++) {
+        acc += list[k].w;
+        if (r <= acc) return list[k];
+      }
+      return list[list.length - 1];
+    }
+
+    function totalOf(list) {
+      var s = 0;
+      for (var k = 0; k < list.length; k++) s += list[k].w;
+      return s;
+    }
+
+    /* ---- Shape 0: the product assembling ---------------------------------
+       A dashboard in exploded perspective — sidebar, header, two cards, a bar
+       chart and a list — deliberately echoing the real products further down
+       the page. The panels sit at different depths so it reads as something
+       being put together rather than a flat wireframe. */
+
+    var ui = [];
+    var UI = 0.72;   // overall scale of the assembled product
+
+    function panel(x0, y0, x1, y1, z, rad, rows) {
+      var e = roundRect(x0, y0, x1, y1, rad);
+      e.z = z;
+      ui.push(e);
+      for (var k = 0; k < (rows || 0); k++) {
+        var yy = y1 - 0.5 - k * 0.44;
+        if (yy < y0 + 0.25) break;
+        var l = hLine(x0 + 0.32, x0 + 0.32 + (x1 - x0 - 0.7) * (0.4 + Math.random() * 0.5), yy);
+        l.z = z + 0.02;
+        l.w *= 0.85;
+        ui.push(l);
+      }
+    }
+
+    panel(-5.4, -3.6, 5.4, 3.6, 0, 0.3);              // app frame
+    panel(-5.4, -3.6, -2.8, 3.6, 0.06, 0.3);          // sidebar
+    panel(-2.8, 2.5, 5.4, 3.6, 0.06, 0.3);            // top bar
+    panel(-2.35, 0.35, 0.7, 2.2, 0.66, 0.22, 3);      // card
+    panel(1.0, 0.35, 4.95, 2.2, 0.66, 0.22);          // chart card
+    panel(-2.35, -3.15, 4.95, -0.15, 0.44, 0.22, 5);  // list
+
+    for (var nv = 0; nv < 5; nv++) {                  // sidebar nav items
+      var navEl = roundRect(-5.0, 2.18 - nv * 0.64, -3.25, 2.6 - nv * 0.64, 0.16);
+      navEl.z = 0.1;
+      ui.push(navEl);
+    }
+
+    for (var bar = 0; bar < 7; bar++) {               // bars in the chart card
+      var bx = 1.38 + bar * 0.5;
+      var barEl = roundRect(bx, 0.62, bx + 0.3, 0.62 + (0.28 + Math.random() * 1.15), 0.1);
+      barEl.z = 0.7;
+      ui.push(barEl);
+    }
+
+    var badge = roundRect(3.35, -1.5, 5.75, -0.82, 0.34);  // a piece still landing
+    badge.z = 1.55;
+    ui.push(badge);
+
+    // Sparse dot grid behind the panels. Kept inside their footprint — spread
+    // any wider and it is the backdrop, not the product, that collides with
+    // the headline.
+    var backdrop = {
+      w: 30, seed: Math.random(), z: -2.4,
+      s: function (out) {
+        out[0] = (Math.round(Math.random() * 16) - 8) * 0.66;
+        out[1] = (Math.round(Math.random() * 11) - 5.5) * 0.66;
+      }
+    };
+    ui.push(backdrop);
+
+    var uiTotal = totalOf(ui);
+
+    /* ---- Shape 2: the component sheet ------------------------------------
+       Buttons, inputs, toggles and cards on a grid with the centre left empty,
+       so the sheet frames the copy instead of sitting underneath it. */
+
+    var comps = [];
+    for (var cgx = -7; cgx <= 7; cgx++) {
+      for (var cgy = -5; cgy <= 5; cgy++) {
+        var ccx = cgx * 2.4, ccy = cgy * 1.95;
+        if (Math.abs(ccx) < 7.6 && Math.abs(ccy) < 4.8) continue;   // hole for the text
+        var kind = Math.random(), ce;
+        if (kind < 0.3) ce = roundRect(ccx - 0.72, ccy - 0.23, ccx + 0.72, ccy + 0.23, 0.23);
+        else if (kind < 0.56) ce = roundRect(ccx - 0.88, ccy - 0.29, ccx + 0.88, ccy + 0.29, 0.09);
+        else if (kind < 0.76) ce = roundRect(ccx - 0.46, ccy - 0.25, ccx + 0.46, ccy + 0.25, 0.25);
+        else ce = roundRect(ccx - 0.82, ccy - 0.64, ccx + 0.82, ccy + 0.64, 0.16);
+        ce.z = (Math.random() - 0.5) * 0.7;
+        comps.push(ce);
+      }
+    }
+    var compTotal = totalOf(comps);
 
     for (var i = 0; i < COUNT; i++) {
       var i3 = i * 3;
 
-      /* --- Shape 0: the neural mass. ---
-         Three structures, because a lone ellipsoid reads as a fuzzy blob no
-         matter how it is folded: a cerebrum split by a deep midline fissure,
-         a finely-banded cerebellum at the lower rear, and a short stem.
-         Particles are rejection-sampled toward the crests — with additive
-         points it is density contrast, not displacement, that draws the
-         folds. Sulci and the fissure become genuine dark valleys. */
-      var role = Math.random();
-      var g = 1, nx, ny, nz;
+      // Shape 0 — the assembling product. Scaled to sit in the right-hand
+      // column without its left edge reaching the copy.
+      var el = pick(ui, uiTotal);
+      el.s(tmp);
+      interfaceP[i3] = tmp[0] * UI;
+      interfaceP[i3 + 1] = tmp[1] * UI;
+      interfaceP[i3 + 2] = (el.z + (Math.random() - 0.5) * 0.05) * UI;
 
-      if (role < STEM) {
-        // Brain stem: a short tapered tube dropping ahead of the cerebellum.
-        var sT = Math.random();
-        var sRad = (0.58 - sT * 0.24) * Math.sqrt(Math.random());
-        var sAng = Math.random() * TAU;
-        nx = Math.cos(sAng) * sRad;
-        ny = -2.0 - sT * 1.9;
-        nz = -1.3 + Math.sin(sAng) * sRad - sT * 0.35;
-        g = 0.5;
-      } else {
-        // Shared unit-sphere sampling for cerebrum and cerebellum.
-        var sx, sy, sz, accept, tries = 0;
-        var cerebellum = role < STEM + CEREB;
-
-        do {
-          var th = Math.random() * TAU;
-          var ph = Math.acos(2 * Math.random() - 1);
-          var sp = Math.sin(ph);
-          sx = sp * Math.cos(th);
-          sy = Math.cos(ph);
-          sz = sp * Math.sin(th);
-
-          if (cerebellum) {
-            // Folia: fine parallel bands, far tighter than cortical gyri.
-            g = Math.pow(0.5 + 0.5 * Math.cos(sy * 17 + sz * 5), 1.3);
-            accept = 0.18 + 0.82 * g;
-          } else {
-            g = gyrus(sx, sy, sz);
-            // The longitudinal fissure — the most legible cue in a front or
-            // top view. Thin the midline out, strongest over the crown.
-            var fis = Math.exp(-(sx * sx) / 0.012) * Math.min(1, Math.max(0, sy + 0.2) * 1.7);
-            accept = (0.08 + 0.92 * g) * (1 - 0.92 * fis);
-            // Carve the back-bottom notch the cerebellum sits in. Without this
-            // the two masses overlap and read as one lump.
-            var notch = Math.max(0, -sz - 0.1) * Math.max(0, -sy - 0.05) * 5.0;
-            accept *= Math.max(0.02, 1 - notch);
-          }
-          tries++;
-        } while (Math.random() > accept && tries < 7);
-
-        // Hollow shell: a filled volume washes the folds out.
-        var rr = 0.89 + Math.pow(Math.random(), 0.6) * 0.11;
-        rr *= 1 - (1 - g) * 0.17;
-
-        if (cerebellum) {
-          nx = sx * 1.5 * rr;
-          ny = -2.05 + sy * 1.0 * rr;
-          nz = -3.15 + sz * 1.45 * rr;
-        } else {
-          var fis2 = Math.exp(-(sx * sx) / 0.012) * Math.min(1, Math.max(0, sy + 0.2) * 1.7);
-          rr *= 1 - 0.2 * fis2;
-          nx = sx * A * rr;
-          ny = sy * B * rr;
-          nz = sz * C * rr;
-          nx += (sx >= 0 ? 0.15 : -0.15) * fis2;  // widen the cleft
-          if (ny < 0) ny *= 0.8;                  // brains are flat underneath
-          // Occipital taper: the back is lower and blunter than the forehead.
-          var zt = nz / C;
-          if (zt < 0) ny -= Math.pow(-zt, 2) * 0.55;
-        }
-      }
-
-      neural[i3] = (nx + (Math.random() - 0.5) * 0.1) * NS;
-      neural[i3 + 1] = (ny + (Math.random() - 0.5) * 0.1) * NS;
-      neural[i3 + 2] = (nz + (Math.random() - 0.5) * 0.1) * NS;
-
-      /* --- Shape 1: gear. A toothed torus — the automation frame.
-         Sized so the hole clears the text column: the ring frames copy against
-         the edges of the viewport instead of sitting behind it. --- */
-      var gu = Math.random() * TAU;
-      var gv = Math.random() * TAU;
-      var toothPhase = (gu * 16) / TAU;
-      var tooth = (toothPhase - Math.floor(toothPhase)) < 0.5 ? 0.8 : 0.0;
-      var R = 7.9 + tooth;
-      var tr = 1.05;
-      gear[i3] = (R + tr * Math.cos(gv)) * Math.cos(gu);
-      gear[i3 + 1] = (R + tr * Math.cos(gv)) * Math.sin(gu);
-      gear[i3 + 2] = tr * Math.sin(gv) * 1.6;
-
-      /* --- Shape 2: lattice. A rippling structural grid, spread wide and held
-         back so depth fog reads it as architecture, not foreground. --- */
+      // Shape 1 — a wide, far grid. Through the work section the screenshots
+      // are the subject, so the field retreats into depth and gets out of it.
       var side = Math.ceil(Math.sqrt(COUNT));
       var gx = (i % side) / (side - 1) - 0.5;
       var gy = Math.floor(i / side) / (side - 1) - 0.5;
-      lattice[i3] = gx * 34.0;
-      lattice[i3 + 1] = gy * 22.0;
-      lattice[i3 + 2] = Math.sin(gx * 11) * Math.cos(gy * 9) * 2.6;
+      fieldP[i3] = gx * 34.0;
+      fieldP[i3 + 1] = gy * 22.0;
+      fieldP[i3 + 2] = Math.sin(gx * 11) * Math.cos(gy * 9) * 2.6;
 
-      /* --- Shape 3: logo. Overwritten once the mark is sampled. --- */
-      logo[i3] = neural[i3] * 2.4;
-      logo[i3 + 1] = neural[i3 + 1] * 2.4;
-      logo[i3 + 2] = neural[i3 + 2] * 0.4;
+      // Shape 2 — the component sheet.
+      var ce2 = pick(comps, compTotal);
+      ce2.s(tmp);
+      gridP[i3] = tmp[0];
+      gridP[i3 + 1] = tmp[1];
+      gridP[i3 + 2] = ce2.z;
 
-      // Crests carry the larger, hotter particles; sulci stay cool and fine.
-      // Size does double duty as brightness under additive blending.
-      sizes[i] = (0.011 + Math.random() * 0.030) * (0.72 + 0.62 * g);
-      seeds[i] = Math.random();
-      // Tint ramps light -> brand -> deep red, so crests must skew LOW to read
-      // as lit. Sparks stay scattered, like something firing.
-      tints[i] = Math.random() < 0.02 ? 0.98 : Math.pow(Math.random(), 1 + g * 1.1) * 0.93;
+      // Shape 3 — overwritten once the mark is sampled.
+      logoP[i3] = interfaceP[i3] * 0.5;
+      logoP[i3 + 1] = interfaceP[i3 + 1] * 0.5;
+      logoP[i3 + 2] = 0;
+
+      sizes[i] = 0.011 + Math.random() * 0.028;
+      // Panels drift as rigid pieces: the seed is the element's, not the
+      // particle's, plus a hair of shimmer so it never looks frozen.
+      seeds[i] = el.seed + Math.random() * 0.03;
+      tints[i] = Math.random() < 0.03 ? 0.98 : Math.pow(Math.random(), 1.25) * 0.9;
     }
 
     var geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.BufferAttribute(neural, 3));
-    geo.setAttribute('aGear', new THREE.BufferAttribute(gear, 3));
-    geo.setAttribute('aLattice', new THREE.BufferAttribute(lattice, 3));
-    geo.setAttribute('aLogo', new THREE.BufferAttribute(logo, 3));
+    geo.setAttribute('position', new THREE.BufferAttribute(interfaceP, 3));
+    geo.setAttribute('aField', new THREE.BufferAttribute(fieldP, 3));
+    geo.setAttribute('aGrid', new THREE.BufferAttribute(gridP, 3));
+    geo.setAttribute('aLogo', new THREE.BufferAttribute(logoP, 3));
     geo.setAttribute('aSize', new THREE.BufferAttribute(sizes, 1));
     geo.setAttribute('aSeed', new THREE.BufferAttribute(seeds, 1));
     geo.setAttribute('aTint', new THREE.BufferAttribute(tints, 1));
@@ -364,18 +412,18 @@
     img.src = 'assets/logo-orange.png';
 
     /* --- Placement: right of the headline on desktop, behind it on mobile --- */
-    // Park the mass against the right edge of the frame rather than at a fixed
-    // world offset: a constant x either clips on narrow desktops or drifts into
-    // the copy on wide ones.
+    // Park it against the right edge of the frame rather than at a fixed world
+    // offset: a constant x either clips on narrow desktops or drifts into the
+    // copy on wide ones.
     function homeX() {
       if (window.innerWidth < 900) return 0;
       var halfW = Math.tan(camera.fov * Math.PI / 360) * camera.position.z * camera.aspect;
-      return Math.max(3.4, halfW - 4.9);
+      return Math.max(3.2, halfW - 4.8);
     }
-    // On phones there is no free column, so the mass drops below the copy and
-    // sits further back — present as atmosphere, never over the headline.
-    function homeY() { return window.innerWidth < 900 ? -2.4 : 0.2; }
-    function homeZ() { return window.innerWidth < 900 ? -4.5 : 0; }
+    // On phones there is no free column, so it drops below the copy and sits
+    // further back — present as atmosphere, never over the headline.
+    function homeY() { return window.innerWidth < 900 ? -2.6 : 0.15; }
+    function homeZ() { return window.innerWidth < 900 ? -5.5 : 0; }
 
     var pointer = { x: 0, y: 0 };      // normalized -1..1
     var eased = { x: 0, y: 0 };
@@ -393,7 +441,7 @@
       window.addEventListener('mouseleave', function () { hasPointer = false; });
     }
 
-    /* --- Scroll drives the morph: neural -> gear -> lattice -> logo --- */
+    /* --- Scroll drives the morph: product -> field -> components -> mark --- */
     var stage = { a: 0, b: 0, c: 0, d: 0 };
 
     if (hasGSAP && window.ScrollTrigger && !REDUCED) {
@@ -411,10 +459,10 @@
         });
       };
 
-      // The cloud must be out of the way before the first paragraph is read,
-      // so the neural -> gear opening starts as the manifesto enters view.
-      link('#metodo', 'top 85%', 'top 5%', 'a');
-      link('#trabalho', 'top bottom', 'top 35%', 'b');
+      // The product must clear the frame before the real screenshots arrive —
+      // nothing should compete with the proof.
+      link('#trabalho', 'top 90%', 'top 25%', 'a');
+      link('#capacidades', 'top 85%', 'top 20%', 'b');
       link('#contato', 'top 85%', 'center 62%', 'c');
       // The mark assembles, holds, then burns out over the footer.
       link('.footer', 'top bottom', 'top 55%', 'd');
@@ -447,48 +495,48 @@
       // resolves twice as fast on a 120Hz panel as on a 60Hz one.
       var intro = Math.min(1, t / 1.4);
 
-      // Through the copy-heavy middle of the page the field steps back so it
-      // never costs the body text contrast. The logo finale is held back too:
-      // it should read as a monumental watermark behind the closing statement,
-      // not compete with it.
-      var mid = Math.min(1, stage.a + stage.b);
+      // Brightness is choreographed against what each section is asking the eye
+      // to do. Over the work, the real screenshots are the argument and the
+      // field all but disappears. Over the component sheet it comes back, but
+      // only enough to frame. The mark stays a watermark, never a competitor.
+      var overWork = 1 - 0.72 * stage.a * (1 - stage.b);
+      var overGrid = 1 - 0.34 * stage.b * (1 - stage.c);
+      var overMark = 1 - 0.55 * stage.c;
 
-      // On phones there is no empty column to put the field in — it sits
-      // directly behind the copy, so it drops to atmosphere.
+      // On phones there is no empty column to put it in — it sits directly
+      // behind the copy, so it drops to atmosphere.
       var narrow = window.innerWidth < 900 ? 0.5 : 1;
 
       uniforms.uOpacity.value =
-        intro * (1 - 0.45 * mid * (1 - stage.c)) * (1 - 0.58 * stage.c) *
-        (1 - 0.85 * stage.d) * narrow;
+        intro * overWork * overGrid * overMark * (1 - 0.85 * stage.d) * narrow;
 
       eased.x += (pointer.x - eased.x) * 0.045;
       eased.y += (pointer.y - eased.y) * 0.045;
 
-      // Centre as soon as the ring starts forming — a centred ring frames the
-      // copy, while an off-centre one would drag its rim across the text.
+      // Everything after the hero is centred: the component sheet has a hole
+      // cut for the copy, and the mark belongs dead centre. Only the assembled
+      // product sits off to one side.
       var toCenter = Math.min(1, Math.max(stage.a * 1.3, stage.c * 1.15));
       target.set(
         homeX() * (1 - toCenter) + eased.x * 0.85,
         homeY() * (1 - toCenter) + eased.y * 0.6,
-        homeZ() * (1 - toCenter) - 7.0 * stage.b * (1 - stage.c)
+        homeZ() * (1 - toCenter) - 6.0 * stage.a * (1 - stage.b)
       );
       field.position.lerp(target, 0.05);
 
-      // The neural state holds a readable three-quarter view, tipped just far
-      // enough forward to expose the midline fissure. Spinning it would average
-      // the folds back into the blob they came from — only the later shapes,
-      // which have no silhouette to protect, are allowed to turn.
+      // The product is held near face-on with just enough three-quarter turn to
+      // show the panels stacked in depth. Rotate it any further and the
+      // rectangles skew into unreadable diamonds; spin it and it stops being an
+      // interface at all. Only the later shapes, which have no silhouette to
+      // protect, are free to turn.
       var spin = 1 - Math.min(1, stage.c * 1.4);
       var morphing = Math.min(1, stage.a * 1.5);
       var settled = 1 - morphing;
-      spinY += dt * 1.1 * morphing;
+      spinY += dt * 0.55 * morphing;
 
-      // Near side-on: the sagittal profile — frontal bulge, occipital taper,
-      // cerebellum and stem — is what makes a brain a brain. A front view just
-      // reads as a sphere with a slot in it.
-      field.rotation.y = settled * (-1.18 + Math.sin(t * 0.15) * 0.20) + spinY;
-      field.rotation.x = (settled * (0.14 + Math.sin(t * 0.19) * 0.05) + eased.y * 0.14) * spin;
-      field.rotation.z = eased.x * 0.04 * spin;
+      field.rotation.y = settled * (-0.34 + Math.sin(t * 0.17) * 0.07) + spinY;
+      field.rotation.x = (settled * (0.13 + Math.sin(t * 0.21) * 0.035) + eased.y * 0.1) * spin;
+      field.rotation.z = (settled * 0.015 + eased.x * 0.03) * spin;
 
       // Repulsion: unproject the cursor onto the field's own space.
       if (hasPointer && !COARSE) {

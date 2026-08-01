@@ -1,0 +1,11 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>shot</title>
+<style>html,body{margin:0;background:#000;overflow:hidden}iframe{display:block;border:0;width:100vw;height:100vh}</style>
+</head><body><iframe id="f" src="/index.html"></iframe><script>
+var q=function(k){var m=location.search.match(new RegExp(k+'=(\\d+)'));return m?parseInt(m[1],10):0;};
+var y=q('y'),wpx=q('w'),hpx=q('h'),f=document.getElementById('f');
+if(wpx){f.style.width=wpx+'px';f.style.height=(hpx||844)+'px';}
+f.addEventListener('load',function(){var w=f.contentWindow,d=f.contentDocument;
+function s(){try{w.scrollTo(0,y);if(w.ScrollTrigger){w.ScrollTrigger.refresh();w.ScrollTrigger.getAll().forEach(function(t){t.kill(false);});}
+if(w.gsap){w.gsap.globalTimeline.getChildren(true,true,false).forEach(function(t){t.kill();});w.gsap.set('.reveal',{opacity:1,y:0});w.gsap.set('.reveal-line > span',{y:0});}else{d.documentElement.classList.remove('js');}w.scrollTo(0,y);}catch(e){}}
+s();setTimeout(s,700);setTimeout(s,1600);});
+</script></body></html>
