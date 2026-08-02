@@ -1490,6 +1490,18 @@ html:not(.js) .stat { opacity: 1; transform: none; }
   text-shadow: 0 0 14px #000, 0 0 38px #000, 0 0 76px rgba(0, 0, 0, 0.95);
 }
 
+/* Keep the closing question on the same ember treatment as the hero promise. */
+.close__head .molten {
+  background: var(--flame);
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  filter: brightness(1.12) saturate(1.08);
+}
+
 .close__lede {
   margin-top: clamp(1.75rem, 3.5vw, 2.5rem);
   text-align: left;
@@ -1524,11 +1536,14 @@ html:not(.js) .stat { opacity: 1; transform: none; }
   content: '';
   position: absolute;
   z-index: -1;
-  width: 86%;
+  width: 94%;
   aspect-ratio: 1;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(240, 129, 19, 0.2), rgba(233, 77, 29, 0.055) 46%, transparent 70%);
-  filter: blur(48px);
+  background: radial-gradient(circle,
+    rgba(240, 129, 19, 0.17) 0%,
+    rgba(233, 77, 29, 0.075) 34%,
+    rgba(233, 77, 29, 0.025) 55%,
+    transparent 74%);
 }
 
 .close__mark-fallback {

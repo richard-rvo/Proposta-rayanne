@@ -111,6 +111,7 @@
     'attribute vec3 aProcessOrigin;',
     'attribute float aProcessPhase;',
     'attribute vec3 aLogo;',
+    'attribute float aLogoKeep;',
     'attribute float aSize;',
     'attribute float aSeed;',
     'attribute float aTint;',
@@ -119,6 +120,8 @@
     'uniform float uState;',   // 0 lamp, 1 lattice, 2 woven knot, 3 mark
     'uniform float uProcessMix;',
     'uniform float uProcessBuild;',
+    'uniform float uProcessCos;',
+    'uniform float uProcessSin;',
     'uniform float uBurst;',   // knot explosion before the RV mark assembles
     'uniform float uScale;',
     'uniform vec3  uMouse;',
@@ -129,6 +132,7 @@
     'varying float vDepth;',
     'varying float vProcessAlpha;',
     'varying float vProcessHeat;',
+    'varying float vLogoVisibility;',
 
     'void main() {',
     // Chained blend: each stage takes over the previous one.
@@ -136,14 +140,20 @@
     '  p = mix(p, aLattice, clamp(uState,       0.0, 1.0));',
     '  p = mix(p, aKnot,    clamp(uState - 1.0, 0.0, 1.0));',
     '  float logoMix = clamp(uState - 2.0, 0.0, 1.0);',
-    '  float processLayer = smoothstep(aProcessPhase - 0.10, aProcessPhase + 0.08, uProcessBuild);',
-    '  float liveMask = smoothstep(0.78, 0.84, aProcessPhase) * smoothstep(0.76, 0.94, uProcessBuild);',
-    '  float liveAngle = uTime * 0.11;',
-    '  vec3 processLive = aProcess;',
-    '  processLive.xz = mat2(cos(liveAngle), -sin(liveAngle), sin(liveAngle), cos(liveAngle)) * processLive.xz;',
-    '  vec3 processTarget = mix(aProcessOrigin, mix(aProcess, processLive, liveMask), processLayer);',
     '  float processInfluence = uProcessMix * (1.0 - logoMix);',
-    '  p = mix(p, processTarget, processInfluence);',
+    '  float processLayer = 1.0;',
+    '  float processBand = 0.0;',
+    // The branch is uniform for the whole draw call. Hero, work and the settled
+    // RV mark skip the process-only assembly math entirely.
+    '  if (processInfluence > 0.001) {',
+    '    processLayer = smoothstep(aProcessPhase - 0.10, aProcessPhase + 0.08, uProcessBuild);',
+    '    float liveMask = smoothstep(0.78, 0.84, aProcessPhase) * smoothstep(0.76, 0.94, uProcessBuild);',
+    '    vec3 processLive = aProcess;',
+    '    processLive.xz = mat2(uProcessCos, -uProcessSin, uProcessSin, uProcessCos) * processLive.xz;',
+    '    vec3 processTarget = mix(aProcessOrigin, mix(aProcess, processLive, liveMask), processLayer);',
+    '    processBand = exp(-pow((uProcessBuild - aProcessPhase) * 6.5, 2.0));',
+    '    p = mix(p, processTarget, processInfluence);',
+    '  }',
     '  p = mix(p, aLogo, logoMix);',
 
     // Drift keyed to the emitter seed, so panels wander as rigid pieces and
@@ -183,7 +193,6 @@
     '  float stateSize = mix(1.0, 0.38, smoothstep(0.0, 1.0, uState));',
     '  stateSize = mix(stateSize, 0.68, smoothstep(1.0, 2.0, uState));',
     '  stateSize = mix(stateSize, 0.86, smoothstep(2.0, 3.0, uState));',
-    '  float processBand = exp(-pow((uProcessBuild - aProcessPhase) * 6.5, 2.0));',
     '  float processSize = mix(1.0, 1.0 + processBand * 0.58, processInfluence);',
     '  stateSize = mix(stateSize, 0.76, processInfluence);',
     '  gl_PointSize = aSize * stateSize * processSize * uScale / max(-mv.z, 0.1);',
@@ -193,6 +202,10 @@
     '  vDepth = -mv.z;',
     '  vProcessAlpha = mix(1.0, mix(0.008, 1.0, processLayer), processInfluence);',
     '  vProcessHeat = processBand * processLayer * processInfluence;',
+    // The sampled mark contains many visually identical points. Fade a stable
+    // subset out only near the end of the logo morph to cut dense overdraw.
+    '  float logoKeep = step(0.30, aLogoKeep);',
+    '  vLogoVisibility = mix(1.0, logoKeep, smoothstep(0.48, 0.92, logoMix));',
     '}'
   ].join('\n');
 
@@ -209,6 +222,7 @@
     'varying float vDepth;',
     'varying float vProcessAlpha;',
     'varying float vProcessHeat;',
+    'varying float vLogoVisibility;',
 
     // Signed distance to an equilateral triangle (iq).
     'float sdTri(vec2 p, float r) {',
@@ -221,6 +235,9 @@
     '}',
 
     'void main() {',
+    // Reject redundant logo particles before the signed-distance and colour
+    // work. All process and hero particles still use the complete field.
+    '  if (vLogoVisibility < 0.02) discard;',
     '  vec2 uv = gl_PointCoord - 0.5;',
 
     // Outlined triangle, like the reference constellation.
@@ -231,7 +248,7 @@
     // A very faint core protects sub-pixel points without filling the larger
     // triangles. At hero scale the glyph remains visibly outlined.
     '  float core = exp(-dot(uv, uv) * 10.0) * 0.13;',
-    '  float a = clamp(outline + core, 0.0, 1.0) * vProcessAlpha;',
+    '  float a = clamp(outline + core, 0.0, 1.0) * vProcessAlpha * vLogoVisibility;',
     '  if (a < 0.01) discard;',
 
     // Ember ramp: light orange -> brand orange -> deep red, with rare white sparks.
@@ -294,6 +311,7 @@
     var processOriginP = new Float32Array(COUNT * 3);
     var processPhases = new Float32Array(COUNT);
     var logoP = new Float32Array(COUNT * 3);
+    var logoKeep = new Float32Array(COUNT);
     var sizes = new Float32Array(COUNT);
     var seeds = new Float32Array(COUNT);
     var tints = new Float32Array(COUNT);
@@ -655,6 +673,7 @@
       logoP[i3] = heroP[i3] * 0.6;
       logoP[i3 + 1] = heroP[i3 + 1] * 0.6;
       logoP[i3 + 2] = 0;
+      logoKeep[i] = Math.random();
 
       sizes[i] = (0.05 + Math.random() * 0.068) * be.sz * PARTICLE_GLYPH_SCALE;
       seeds[i] = be.seed + Math.random() * 0.03;
@@ -673,6 +692,7 @@
     geo.setAttribute('aProcessOrigin', new THREE.BufferAttribute(processOriginP, 3));
     geo.setAttribute('aProcessPhase', new THREE.BufferAttribute(processPhases, 1));
     geo.setAttribute('aLogo', new THREE.BufferAttribute(logoP, 3));
+    geo.setAttribute('aLogoKeep', new THREE.BufferAttribute(logoKeep, 1));
     geo.setAttribute('aSize', new THREE.BufferAttribute(sizes, 1));
     geo.setAttribute('aSeed', new THREE.BufferAttribute(seeds, 1));
     geo.setAttribute('aTint', new THREE.BufferAttribute(tints, 1));
@@ -682,6 +702,8 @@
       uState: { value: 0 },
       uProcessMix: { value: 0 },
       uProcessBuild: { value: 0 },
+      uProcessCos: { value: 1 },
+      uProcessSin: { value: 0 },
       uBurst: { value: 0 },
       uScale: { value: renderer.domElement.height * 0.5 },
       uMouse: { value: new THREE.Vector3(999, 999, 999) },
@@ -797,6 +819,10 @@
     var markHome = new THREE.Vector3();
     var heroVisual = document.querySelector('.hero__visual');
     var closeVisual = document.querySelector('.close__visual');
+    var markScreenX = 0.74;
+    var markDocumentY = window.innerHeight * 0.5;
+    var markMeasured = false;
+    var markScrollY = NaN;
 
     function updateHome() {
       var halfW = Math.tan(camera.fov * Math.PI / 360) * camera.position.z * camera.aspect;
@@ -820,12 +846,26 @@
       }
     }
 
-    function updateMarkHome() {
+    function measureMarkHome() {
+      var rect = closeVisual ? closeVisual.getBoundingClientRect() : null;
+      if (rect) {
+        markScreenX = (rect.left + rect.width * 0.5) / window.innerWidth;
+        markDocumentY = rect.top + window.scrollY + rect.height * 0.5;
+        markMeasured = true;
+      }
+      markScrollY = NaN;
+      updateMarkHome(true);
+    }
+
+    function updateMarkHome(force) {
+      var scrollY = window.scrollY;
+      if (!force && scrollY === markScrollY) return;
+      markScrollY = scrollY;
+
       var halfW = Math.tan(camera.fov * Math.PI / 360) * camera.position.z * camera.aspect;
       var halfH = Math.tan(camera.fov * Math.PI / 360) * camera.position.z;
-      var rect = closeVisual ? closeVisual.getBoundingClientRect() : null;
-      var screenX = rect ? (rect.left + rect.width * 0.5) / window.innerWidth : 0.74;
-      var screenY = rect ? (rect.top + rect.height * 0.5) / window.innerHeight : 0.5;
+      var screenX = markMeasured ? markScreenX : 0.74;
+      var screenY = markMeasured ? (markDocumentY - scrollY) / window.innerHeight : 0.5;
       var depth = window.innerWidth < 900 ? -1.15 : -0.35;
 
       // The closing section can sit several viewports away during a fast reverse
@@ -843,8 +883,16 @@
     }
 
     updateHome();
-    updateMarkHome();
+    measureMarkHome();
     field.position.copy(home);
+
+    // Layout can settle once more after fonts and assets resolve. These are the
+    // only extra DOM measurements; the animation loop uses the cached document
+    // coordinate and the current scroll offset.
+    window.addEventListener('load', measureMarkHome, { once: true });
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(measureMarkHome);
+    }
 
     var pointer = { x: 0, y: 0 };      // normalized -1..1
     var eased = { x: 0, y: 0 };
@@ -1001,6 +1049,11 @@
       uniforms.uState.value = stage.a + stage.b + stage.c;
       uniforms.uProcessMix.value = processMix;
       uniforms.uProcessBuild.value = processMotion.progress;
+      if (processMix > 0.001 && stage.c < 0.999) {
+        var processAngle = t * 0.11;
+        uniforms.uProcessCos.value = Math.cos(processAngle);
+        uniforms.uProcessSin.value = Math.sin(processAngle);
+      }
       // The burst reaches its widest point through "Quem faz" and collapses as
       // the contact morph advances, producing a true explode -> assemble beat.
       var burst = whoBurst * (1 - Math.min(1, stage.c * 1.18));
@@ -1125,10 +1178,10 @@
       resizeRAF = requestAnimationFrame(function () {
         camera.aspect = window.innerWidth / window.innerHeight;
         camera.updateProjectionMatrix();
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        uniforms.uScale.value = renderer.domElement.height * 0.5;
-        updateHome();
-        updateMarkHome();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      uniforms.uScale.value = renderer.domElement.height * 0.5;
+      updateHome();
+      measureMarkHome();
       });
     }, { passive: true });
 
