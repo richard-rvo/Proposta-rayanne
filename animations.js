@@ -17,6 +17,7 @@
   var hasGSAP = typeof window.gsap !== 'undefined';
   var hasTHREE = typeof window.THREE !== 'undefined';
   var loaderProgress = 0;
+  var processMotion = { progress: 0, active: 0 };
 
   function setLoaderProgress(value, label) {
     loaderProgress = Math.max(loaderProgress, Math.min(100, value));
@@ -106,6 +107,9 @@
   var VERT = [
     'attribute vec3 aLattice;',
     'attribute vec3 aKnot;',
+    'attribute vec3 aProcess;',
+    'attribute vec3 aProcessOrigin;',
+    'attribute float aProcessPhase;',
     'attribute vec3 aLogo;',
     'attribute float aSize;',
     'attribute float aSeed;',
@@ -113,6 +117,8 @@
 
     'uniform float uTime;',
     'uniform float uState;',   // 0 lamp, 1 lattice, 2 woven knot, 3 mark
+    'uniform float uProcessMix;',
+    'uniform float uProcessBuild;',
     'uniform float uBurst;',   // knot explosion before the RV mark assembles
     'uniform float uScale;',
     'uniform vec3  uMouse;',
@@ -121,19 +127,31 @@
     'varying float vTint;',
     'varying float vFlicker;',
     'varying float vDepth;',
+    'varying float vProcessAlpha;',
+    'varying float vProcessHeat;',
 
     'void main() {',
     // Chained blend: each stage takes over the previous one.
     '  vec3 p = position;',
     '  p = mix(p, aLattice, clamp(uState,       0.0, 1.0));',
     '  p = mix(p, aKnot,    clamp(uState - 1.0, 0.0, 1.0));',
-    '  p = mix(p, aLogo,    clamp(uState - 2.0, 0.0, 1.0));',
+    '  float logoMix = clamp(uState - 2.0, 0.0, 1.0);',
+    '  float processLayer = smoothstep(aProcessPhase - 0.10, aProcessPhase + 0.08, uProcessBuild);',
+    '  float liveMask = smoothstep(0.78, 0.84, aProcessPhase) * smoothstep(0.76, 0.94, uProcessBuild);',
+    '  float liveAngle = uTime * 0.11;',
+    '  vec3 processLive = aProcess;',
+    '  processLive.xz = mat2(cos(liveAngle), -sin(liveAngle), sin(liveAngle), cos(liveAngle)) * processLive.xz;',
+    '  vec3 processTarget = mix(aProcessOrigin, mix(aProcess, processLive, liveMask), processLayer);',
+    '  float processInfluence = uProcessMix * (1.0 - logoMix);',
+    '  p = mix(p, processTarget, processInfluence);',
+    '  p = mix(p, aLogo, logoMix);',
 
     // Drift keyed to the emitter seed, so panels wander as rigid pieces and
     // their edges stay sharp. Kept tight while the product is on screen, opened
     // up for the looser shapes, and stilled as it snaps into the mark.
     '  float settle = 1.0 - clamp(uState - 2.0, 0.0, 1.0) * 0.92;',
     '  float drift = (0.07 + 0.1 * clamp(uState, 0.0, 1.0)) * settle;',
+    '  drift *= mix(1.0, 0.18, processInfluence);',
     '  float t = uTime;',
     '  p.x += sin(t * 0.62 + aSeed * 6.283) * drift;',
     '  p.y += cos(t * 0.71 + aSeed * 5.117) * drift;',
@@ -155,7 +173,7 @@
     // Cursor repulsion, in the system's local space.
     '  vec3 away = p - uMouse;',
     '  float d = length(away);',
-    '  float push = uMouseForce * exp(-d * d * 0.045);',
+    '  float push = uMouseForce * exp(-d * d * 0.045) * mix(1.0, 0.22, processInfluence);',
     '  p += normalize(away + 0.0001) * push;',
 
     '  vec4 mv = modelViewMatrix * vec4(p, 1.0);',
@@ -165,11 +183,16 @@
     '  float stateSize = mix(1.0, 0.38, smoothstep(0.0, 1.0, uState));',
     '  stateSize = mix(stateSize, 0.68, smoothstep(1.0, 2.0, uState));',
     '  stateSize = mix(stateSize, 0.86, smoothstep(2.0, 3.0, uState));',
-    '  gl_PointSize = aSize * stateSize * uScale / max(-mv.z, 0.1);',
+    '  float processBand = exp(-pow((uProcessBuild - aProcessPhase) * 6.5, 2.0));',
+    '  float processSize = mix(1.0, 1.0 + processBand * 0.58, processInfluence);',
+    '  stateSize = mix(stateSize, 0.76, processInfluence);',
+    '  gl_PointSize = aSize * stateSize * processSize * uScale / max(-mv.z, 0.1);',
 
     '  vTint = aTint;',
     '  vFlicker = 0.62 + 0.38 * sin(t * 1.9 + aSeed * 12.566);',
     '  vDepth = -mv.z;',
+    '  vProcessAlpha = mix(1.0, mix(0.008, 1.0, processLayer), processInfluence);',
+    '  vProcessHeat = processBand * processLayer * processInfluence;',
     '}'
   ].join('\n');
 
@@ -184,6 +207,8 @@
     'varying float vTint;',
     'varying float vFlicker;',
     'varying float vDepth;',
+    'varying float vProcessAlpha;',
+    'varying float vProcessHeat;',
 
     // Signed distance to an equilateral triangle (iq).
     'float sdTri(vec2 p, float r) {',
@@ -206,13 +231,14 @@
     // A very faint core protects sub-pixel points without filling the larger
     // triangles. At hero scale the glyph remains visibly outlined.
     '  float core = exp(-dot(uv, uv) * 10.0) * 0.13;',
-    '  float a = clamp(outline + core, 0.0, 1.0);',
+    '  float a = clamp(outline + core, 0.0, 1.0) * vProcessAlpha;',
     '  if (a < 0.01) discard;',
 
     // Ember ramp: light orange -> brand orange -> deep red, with rare white sparks.
     '  vec3 col = mix(uEmberLo, uEmber, smoothstep(0.0, 0.55, vTint));',
     '  col = mix(col, uEmberHi, smoothstep(0.55, 1.0, vTint));',
     '  col = mix(col, vec3(1.0), step(0.955, vTint) * 0.8);',
+    '  col = mix(col, vec3(1.0, 0.93, 0.74), vProcessHeat * 0.88);',
 
     // Depth fog so the far side of the cloud recedes into the void.
     '  float fog = clamp(1.30 - vDepth * 0.026, 0.20, 1.0);',
@@ -264,6 +290,9 @@
     var heroP = new Float32Array(COUNT * 3);
     var latticeP = new Float32Array(COUNT * 3);
     var knotP = new Float32Array(COUNT * 3);
+    var processP = new Float32Array(COUNT * 3);
+    var processOriginP = new Float32Array(COUNT * 3);
+    var processPhases = new Float32Array(COUNT);
     var logoP = new Float32Array(COUNT * 3);
     var sizes = new Float32Array(COUNT);
     var seeds = new Float32Array(COUNT);
@@ -271,6 +300,7 @@
 
     var TAU = Math.PI * 2;
     var tmp3 = [0, 0, 0];
+    var tmpOrigin = [0, 0, 0];
 
     /* ---- Emitters --------------------------------------------------------
        Each shape is a list of emitters carrying a weight. Particles are dealt
@@ -455,6 +485,138 @@
       out[2] = cz + (nz * ca + bz * sa) * tube;
     }
 
+    /* ---- Process sculpture: the product core ------------------------------
+       One object accumulates meaning instead of swapping metaphors at every
+       step. A hot nucleus becomes a blueprint, the blueprint gets a structural
+       cage, and the finished machine receives live signal orbits. */
+
+    function randomDirection(out) {
+      var z = Math.random() * 2 - 1;
+      var a = Math.random() * TAU;
+      var r = Math.sqrt(Math.max(0, 1 - z * z));
+      out[0] = Math.cos(a) * r;
+      out[1] = z;
+      out[2] = Math.sin(a) * r;
+    }
+
+    function sampleProcess(out, origin, index) {
+      var group = Math.random();
+      var a, r, u, z, ring, theta, phi, direction;
+      var phase;
+
+      if (group < 0.16) {
+        // 01 — Conversation: a compact, hot nucleus with an internal coil.
+        phase = -0.06;
+        if (index % 4 === 0) {
+          u = Math.random();
+          a = u * TAU * 7.5;
+          r = 0.34 + Math.sin(a * 0.5) * 0.035;
+          out[0] = Math.cos(a) * r;
+          out[1] = -0.82 + u * 1.64;
+          out[2] = Math.sin(a) * r;
+        } else {
+          randomDirection(out);
+          r = 0.72 + Math.random() * 0.22;
+          out[0] *= r;
+          out[1] *= r;
+          out[2] *= r;
+        }
+
+        origin[0] = out[0] * 0.72 + (Math.random() - 0.5) * 0.08;
+        origin[1] = out[1] * 0.72 + (Math.random() - 0.5) * 0.08;
+        origin[2] = out[2] * 0.72 + (Math.random() - 0.5) * 0.08;
+        return phase;
+      }
+
+      if (group < 0.42) {
+        // 02 — Design: orthogonal construction rings and measured axes.
+        phase = 0.26 + Math.random() * 0.045;
+        ring = index % 4;
+        a = Math.random() * TAU;
+        r = 3.05 + (Math.random() - 0.5) * 0.1;
+
+        if (ring === 0) {
+          out[0] = Math.cos(a) * r;
+          out[1] = Math.sin(a) * r * 0.72;
+          out[2] = (Math.random() - 0.5) * 0.08;
+        } else if (ring === 1) {
+          out[0] = Math.cos(a) * r;
+          out[1] = (Math.random() - 0.5) * 0.08;
+          out[2] = Math.sin(a) * r * 0.86;
+        } else if (ring === 2) {
+          out[0] = (Math.random() - 0.5) * 0.08;
+          out[1] = Math.cos(a) * r * 0.72;
+          out[2] = Math.sin(a) * r * 0.86;
+        } else {
+          direction = index % 3;
+          u = Math.random() * 2 - 1;
+          out[0] = direction === 0 ? u * 3.45 : (Math.random() - 0.5) * 0.05;
+          out[1] = direction === 1 ? u * 2.5 : (Math.random() - 0.5) * 0.05;
+          out[2] = direction === 2 ? u * 2.9 : (Math.random() - 0.5) * 0.05;
+        }
+      } else if (group < 0.82) {
+        // 03 — Construction: latitude/longitude ribs plus radial braces.
+        phase = 0.58 + Math.random() * 0.055;
+        ring = index % 3;
+
+        if (ring === 0) {
+          z = ((index % 11) / 10) * 1.8 - 0.9;
+          a = Math.random() * TAU;
+          r = Math.sqrt(Math.max(0, 1 - z * z));
+          out[0] = Math.cos(a) * r * 3.35;
+          out[1] = z * 2.45;
+          out[2] = Math.sin(a) * r * 2.85;
+        } else if (ring === 1) {
+          phi = (index % 14) / 14 * TAU;
+          theta = Math.random() * Math.PI;
+          out[0] = Math.sin(theta) * Math.cos(phi) * 3.35;
+          out[1] = Math.cos(theta) * 2.45;
+          out[2] = Math.sin(theta) * Math.sin(phi) * 2.85;
+        } else {
+          randomDirection(out);
+          u = 0.34 + Math.random() * 0.66;
+          out[0] *= 3.35 * u;
+          out[1] *= 2.45 * u;
+          out[2] *= 2.85 * u;
+        }
+      } else {
+        // 04 — Live: wide signal paths and a sparse operational halo.
+        phase = 0.84 + Math.random() * 0.055;
+        ring = index % 4;
+        a = Math.random() * TAU;
+        r = 4.15 + Math.random() * 0.55;
+
+        if (ring === 0) {
+          out[0] = Math.cos(a) * r;
+          out[1] = Math.sin(a) * r * 0.58;
+          out[2] = Math.sin(a * 3) * 0.16;
+        } else if (ring === 1) {
+          out[0] = Math.cos(a) * r * 0.88;
+          out[1] = Math.sin(a) * r * 0.42;
+          out[2] = Math.sin(a) * r * 0.72;
+        } else if (ring === 2) {
+          out[0] = Math.sin(a) * r * 0.62;
+          out[1] = Math.cos(a) * r * 0.7;
+          out[2] = Math.sin(a) * r * 0.76;
+        } else {
+          randomDirection(out);
+          r = 3.8 + Math.pow(Math.random(), 0.55) * 1.35;
+          out[0] *= r;
+          out[1] *= r * 0.65;
+          out[2] *= r * 0.8;
+        }
+      }
+
+      // Future layers wait close to the core, then travel outward as their
+      // timeline segment ignites.
+      randomDirection(origin);
+      r = 0.55 + Math.pow(Math.random(), 1.7) * 0.9;
+      origin[0] *= r;
+      origin[1] *= r;
+      origin[2] *= r;
+      return phase;
+    }
+
     for (var i = 0; i < COUNT; i++) {
       var i3 = i * 3;
 
@@ -480,6 +642,15 @@
       knotP[i3 + 1] = tmp3[1];
       knotP[i3 + 2] = tmp3[2];
 
+      // The process engine accumulates four layers from a shared nucleus.
+      processPhases[i] = sampleProcess(tmp3, tmpOrigin, i);
+      processP[i3] = tmp3[0];
+      processP[i3 + 1] = tmp3[1];
+      processP[i3 + 2] = tmp3[2];
+      processOriginP[i3] = tmpOrigin[0];
+      processOriginP[i3 + 1] = tmpOrigin[1];
+      processOriginP[i3 + 2] = tmpOrigin[2];
+
       // Shape 3 — overwritten once the mark is sampled.
       logoP[i3] = heroP[i3] * 0.6;
       logoP[i3 + 1] = heroP[i3 + 1] * 0.6;
@@ -498,6 +669,9 @@
     geo.setAttribute('position', new THREE.BufferAttribute(heroP, 3));
     geo.setAttribute('aLattice', new THREE.BufferAttribute(latticeP, 3));
     geo.setAttribute('aKnot', new THREE.BufferAttribute(knotP, 3));
+    geo.setAttribute('aProcess', new THREE.BufferAttribute(processP, 3));
+    geo.setAttribute('aProcessOrigin', new THREE.BufferAttribute(processOriginP, 3));
+    geo.setAttribute('aProcessPhase', new THREE.BufferAttribute(processPhases, 1));
     geo.setAttribute('aLogo', new THREE.BufferAttribute(logoP, 3));
     geo.setAttribute('aSize', new THREE.BufferAttribute(sizes, 1));
     geo.setAttribute('aSeed', new THREE.BufferAttribute(seeds, 1));
@@ -506,6 +680,8 @@
     var uniforms = {
       uTime: { value: 0 },
       uState: { value: 0 },
+      uProcessMix: { value: 0 },
+      uProcessBuild: { value: 0 },
       uBurst: { value: 0 },
       uScale: { value: renderer.domElement.height * 0.5 },
       uMouse: { value: new THREE.Vector3(999, 999, 999) },
@@ -689,6 +865,7 @@
     /* --- Scroll drives the morph: lamp -> lattice -> knot -> mark --- */
     var stage = { a: 0, b: 0, c: 0, d: 0 };
     var procDim = 0;
+    var processMix = 0;
     var whoBurst = 0;
     var spinY = 0;
     var heroNeedsRestore = false;
@@ -702,9 +879,14 @@
       stage.c = 0;
       stage.d = 0;
       procDim = 0;
+      processMix = 0;
+      processMotion.progress = 0;
+      processMotion.active = 0;
       whoBurst = 0;
       spinY = 0;
       uniforms.uState.value = 0;
+      uniforms.uProcessMix.value = 0;
+      uniforms.uProcessBuild.value = 0;
       uniforms.uBurst.value = 0;
       updateHome();
       field.position.copy(home);
@@ -754,6 +936,18 @@
           },
           onLeave: function () { procDim = 0; },
           onLeaveBack: function () { procDim = 0; }
+        });
+
+        // Before the sticky sequence begins, the three-discipline knot folds
+        // into the process nucleus. The build itself is then driven by the same
+        // normalized progress that illuminates steps 01–04.
+        ScrollTrigger.create({
+          trigger: proc,
+          start: 'top 90%',
+          end: 'top 20%',
+          onUpdate: function (self) { processMix = self.progress; },
+          onLeave: function () { processMix = 1; },
+          onLeaveBack: function () { processMix = 0; }
         });
       }
 
@@ -805,6 +999,8 @@
 
       // The lamp owns the hero outright — it does not morph until you scroll.
       uniforms.uState.value = stage.a + stage.b + stage.c;
+      uniforms.uProcessMix.value = processMix;
+      uniforms.uProcessBuild.value = processMotion.progress;
       // The burst reaches its widest point through "Quem faz" and collapses as
       // the contact morph advances, producing a true explode -> assemble beat.
       var burst = whoBurst * (1 - Math.min(1, stage.c * 1.18));
@@ -820,7 +1016,7 @@
       // to full presence inside its own column beside the closing CTA.
       var overWork = 1 - 0.52 * stage.a * (1 - stage.b);
       var overKnot = 1 - 0.48 * stage.b * (1 - stage.c);
-      var overProcess = 1 - 0.72 * procDim;
+      var overProcess = 1 - (0.72 - processMix * 0.42) * procDim;
       var overMark = 1 - (logoTargetReady ? 0.08 : 0.96) * stage.c;
 
       // On phones there is no empty column to put it in — it sits directly
@@ -843,13 +1039,14 @@
       // mark moves into the reserved right-hand column just like the hero lamp.
       var toCenter = Math.min(1, stage.a * 1.3);
       var toMark = Math.min(1, stage.c * 1.2);
+      var processShiftX = processMix * (window.innerWidth < 900 ? 0 : 0.65);
       var workDepth = -2.6 * stage.a * (1 - stage.b);
       var knotDepth = -1.45 * stage.b * (1 - stage.c);
       var baseX = home.x * (1 - toCenter);
       var baseY = home.y * (1 - toCenter);
       var baseZ = home.z * (1 - toCenter) + workDepth + knotDepth;
       target.set(
-        baseX * (1 - toMark) + markHome.x * toMark + eased.x * (0.85 - toMark * 0.3),
+        baseX * (1 - toMark) + markHome.x * toMark + processShiftX * (1 - toMark) + eased.x * (0.85 - toMark * 0.3),
         baseY * (1 - toMark) + markHome.y * toMark + eased.y * (0.6 - toMark * 0.18),
         baseZ * (1 - toMark) + markHome.z * toMark
       );
@@ -881,6 +1078,9 @@
       var knotY = -0.18 + Math.sin(t * 0.16) * 0.16;
       var knotX = -0.22 + Math.sin(t * 0.13) * 0.07;
       var knotZ = Math.sin(t * 0.11) * 0.035;
+      var processY = -0.31 + Math.sin(t * 0.12) * 0.075;
+      var processX = -0.16 + Math.sin(t * 0.1) * 0.035;
+      var processZ = -0.025 + Math.sin(t * 0.08) * 0.018;
 
       var logoLock = Math.min(1, stage.c * 1.25);
       var logoY = -0.34 + Math.sin(t * 0.21) * 0.11 + eased.x * 0.025;
@@ -892,6 +1092,10 @@
       var preLogoY = mappedY * (1 - knotLock) + knotY * knotLock;
       var preLogoX = mappedX * (1 - knotLock) + knotX * knotLock;
       var preLogoZ = mappedZ * (1 - knotLock) + knotZ * knotLock;
+
+      preLogoY = preLogoY * (1 - processMix) + processY * processMix;
+      preLogoX = preLogoX * (1 - processMix) + processX * processMix;
+      preLogoZ = preLogoZ * (1 - processMix) + processZ * processMix;
 
       field.rotation.y = preLogoY * (1 - logoLock) + logoY * logoLock;
       field.rotation.x = preLogoX * (1 - logoLock) + logoX * logoLock;
@@ -1025,6 +1229,8 @@
         Math.floor(lineProgress * (steps.length - 1) + 0.0001)
       );
 
+      processMotion.progress = lineProgress;
+      processMotion.active = active;
       process.style.setProperty('--process-progress', lineProgress.toFixed(4));
       process.setAttribute('data-active-step', String(active + 1));
 
