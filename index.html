@@ -357,35 +357,47 @@
       </section>
 
       <!-- ============ COMO FUNCIONA ============ -->
-      <section class="section" id="processo">
-        <div class="wrap">
-          <div class="head">
-            <div>
-              <p class="label reveal">Como funciona</p>
-              <h2 class="h reveal">Quatro etapas, sem surpresa no fim.</h2>
+      <section class="process" id="processo">
+        <div class="process__sticky">
+          <div class="wrap">
+            <div class="head process__head">
+              <div>
+                <p class="label reveal">Como funciona</p>
+                <h2 class="h reveal">Quatro etapas, sem surpresa no fim.</h2>
+              </div>
+              <p class="head__lede reveal">
+                Você acompanha cada entrega. Nada de sumir por três meses e voltar
+                com algo que não era o combinado.
+              </p>
             </div>
-            <p class="head__lede reveal">
-              Você acompanha cada entrega. Nada de sumir por três meses e voltar
-              com algo que não era o combinado.
-            </p>
-          </div>
 
-          <div class="stats">
-            <div class="stat reveal">
-              <span class="stat__n">01</span>
-              <span class="stat__k">Conversa — entender sua rotina e onde ela trava, antes de propor qualquer coisa</span>
-            </div>
-            <div class="stat reveal">
-              <span class="stat__n">02</span>
-              <span class="stat__k">Desenho — como vai funcionar e como vai parecer, aprovado antes de construir</span>
-            </div>
-            <div class="stat reveal">
-              <span class="stat__n">03</span>
-              <span class="stat__k">Construção — entregas curtas, que você testa e comenta enquanto avançam</span>
-            </div>
-            <div class="stat reveal">
-              <span class="stat__n">04</span>
-              <span class="stat__k">No ar — publicação, acompanhamento e ajustes conforme o uso real aparece</span>
+            <div class="process__timeline" aria-label="Etapas do projeto">
+              <div class="process__rail" aria-hidden="true">
+                <span class="process__rail-fill"></span>
+              </div>
+
+              <ol class="stats">
+                <li class="stat process__step is-active" data-process-step="0" aria-current="step">
+                  <span class="stat__node" aria-hidden="true"><i></i></span>
+                  <span class="stat__n">01</span>
+                  <span class="stat__k"><strong>Conversa</strong> — entender sua rotina e onde ela trava, antes de propor qualquer coisa</span>
+                </li>
+                <li class="stat process__step" data-process-step="1">
+                  <span class="stat__node" aria-hidden="true"><i></i></span>
+                  <span class="stat__n">02</span>
+                  <span class="stat__k"><strong>Desenho</strong> — como vai funcionar e como vai parecer, aprovado antes de construir</span>
+                </li>
+                <li class="stat process__step" data-process-step="2">
+                  <span class="stat__node" aria-hidden="true"><i></i></span>
+                  <span class="stat__n">03</span>
+                  <span class="stat__k"><strong>Construção</strong> — entregas curtas, que você testa e comenta enquanto avançam</span>
+                </li>
+                <li class="stat process__step" data-process-step="3">
+                  <span class="stat__node" aria-hidden="true"><i></i></span>
+                  <span class="stat__n">04</span>
+                  <span class="stat__k"><strong>No ar</strong> — publicação, acompanhamento e ajustes conforme o uso real aparece</span>
+                </li>
+              </ol>
             </div>
           </div>
         </div>

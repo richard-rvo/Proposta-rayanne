@@ -89,6 +89,7 @@
 
     window.setTimeout(function () {
       initReveals();
+      initProcessTimeline();
       window.clearTimeout(window.__rvLoaderFailsafe);
       document.documentElement.classList.remove('is-loading');
 
@@ -625,16 +626,20 @@
       var halfW = Math.tan(camera.fov * Math.PI / 360) * camera.position.z * camera.aspect;
       var halfH = Math.tan(camera.fov * Math.PI / 360) * camera.position.z;
       var rect = heroVisual ? heroVisual.getBoundingClientRect() : null;
+      var isNarrow = window.innerWidth < 900;
       var screenX = rect ? (rect.left + rect.width * 0.5) / window.innerWidth : 0.74;
       var screenY = rect
-        ? (rect.top + rect.height * (window.innerWidth < 900 ? 0.64 : 0.48)) / window.innerHeight
+        ? (rect.top + (isNarrow ? 0 : window.scrollY) + rect.height * (isNarrow ? 0.64 : 0.48)) / window.innerHeight
         : 0.5;
 
-      if (window.innerWidth < 900) {
+      if (isNarrow) {
         // On a stacked layout the object follows its reserved DOM plinth into
         // view, instead of sitting behind the CTA on the first phone screen.
         home.set((screenX * 2 - 1) * halfW, -(screenY * 2 - 1) * halfH, -1.8);
       } else {
+        // Desktop always resolves the lamp as if the document were at scroll 0.
+        // That preserves the original composition when a reverse scroll reaches
+        // the hero before its DOM column is physically centred in the viewport.
         home.set((screenX * 2 - 1) * halfW, -(screenY * 2 - 1) * halfH, -0.25);
       }
     }
@@ -646,6 +651,13 @@
       var screenX = rect ? (rect.left + rect.width * 0.5) / window.innerWidth : 0.74;
       var screenY = rect ? (rect.top + rect.height * 0.5) / window.innerHeight : 0.5;
       var depth = window.innerWidth < 900 ? -1.15 : -0.35;
+
+      // The closing section can sit several viewports away during a fast reverse
+      // scroll. Keeping its projected target bounded prevents the particle field
+      // from accumulating a huge off-screen position before it becomes the lamp
+      // again in the hero.
+      screenX = Math.max(0.08, Math.min(0.92, screenX));
+      screenY = Math.max(0.1, Math.min(0.9, screenY));
 
       markHome.set(
         (screenX * 2 - 1) * halfW,
@@ -678,6 +690,26 @@
     var stage = { a: 0, b: 0, c: 0, d: 0 };
     var procDim = 0;
     var whoBurst = 0;
+    var spinY = 0;
+    var heroNeedsRestore = false;
+
+    function restoreHeroState() {
+      // Reverse scrolling crosses several independent triggers. Reset them as a
+      // single state when the first morph reaches zero, so the lamp cannot keep
+      // the footer opacity, burst, rotation or an off-screen mark position.
+      stage.a = 0;
+      stage.b = 0;
+      stage.c = 0;
+      stage.d = 0;
+      procDim = 0;
+      whoBurst = 0;
+      spinY = 0;
+      uniforms.uState.value = 0;
+      uniforms.uBurst.value = 0;
+      updateHome();
+      field.position.copy(home);
+      heroNeedsRestore = false;
+    }
 
     if (hasGSAP && window.ScrollTrigger && !REDUCED) {
       gsap.registerPlugin(ScrollTrigger);
@@ -690,8 +722,14 @@
           start: start,
           end: end,
           scrub: 1.1,
-          onUpdate: function (self) { stage[key] = self.progress; },
-          onLeave: function () { stage[key] = 1; },
+          onUpdate: function (self) {
+            stage[key] = self.progress;
+            if (key === 'a' && self.progress > 0.001) heroNeedsRestore = true;
+          },
+          onLeave: function () {
+            stage[key] = 1;
+            if (key === 'a') heroNeedsRestore = true;
+          },
           onLeaveBack: function () { stage[key] = 0; }
         });
       };
@@ -743,7 +781,6 @@
     var clock = new THREE.Clock();
     var running = true;
     var target = new THREE.Vector3();
-    var spinY = 0;
     var prevT = 0;
 
     document.addEventListener('visibilitychange', function () {
@@ -759,6 +796,12 @@
       var dt = Math.min(0.05, t - prevT);
       prevT = t;
       uniforms.uTime.value = t;
+
+      // The transition to the hero is a discrete restoration point. Snapping
+      // once here is intentional: it removes stale placement from the closing
+      // mark while all ordinary scrolling remains smoothly interpolated.
+      if (stage.a > 0.001) heroNeedsRestore = true;
+      else if (heroNeedsRestore) restoreHeroState();
 
       // The lamp owns the hero outright — it does not morph until you scroll.
       uniforms.uState.value = stage.a + stage.b + stage.c;
@@ -961,7 +1004,71 @@
   }
 
   /* ------------------------------------------------------------
-     3. Work cards — real 3D tilt with a tracking specular
+     3. Process — one scroll-driven, fully reversible sequence
+     ------------------------------------------------------------ */
+
+  function initProcessTimeline() {
+    var process = document.querySelector('#processo');
+    if (!process) return;
+
+    var steps = Array.prototype.slice.call(process.querySelectorAll('[data-process-step]'));
+    if (!steps.length) return;
+
+    function render(progress) {
+      var p = Math.max(0, Math.min(1, progress));
+      // The line finishes slightly before the sticky section releases, leaving
+      // the fourth step a deliberate reading beat instead of activating at the
+      // exact final pixel of the scroll range.
+      var lineProgress = Math.min(1, p / 0.82);
+      var active = Math.min(
+        steps.length - 1,
+        Math.floor(lineProgress * (steps.length - 1) + 0.0001)
+      );
+
+      process.style.setProperty('--process-progress', lineProgress.toFixed(4));
+      process.setAttribute('data-active-step', String(active + 1));
+
+      steps.forEach(function (step, index) {
+        var isActive = index === active;
+        step.classList.toggle('is-active', isActive);
+        step.classList.toggle('is-past', index < active);
+        if (isActive) step.setAttribute('aria-current', 'step');
+        else step.removeAttribute('aria-current');
+      });
+    }
+
+    render(0);
+
+    if (!hasGSAP || !window.ScrollTrigger || REDUCED) {
+      if (!hasGSAP || !window.ScrollTrigger) {
+        process.style.setProperty('--process-progress', '1');
+      }
+      return;
+    }
+
+    gsap.registerPlugin(ScrollTrigger);
+    var state = { progress: 0 };
+
+    gsap.to(state, {
+      progress: 1,
+      ease: 'none',
+      onUpdate: function () { render(state.progress); },
+      scrollTrigger: {
+        trigger: process,
+        start: function () {
+          return window.innerWidth >= 900 ? 'top top' : 'top 72%';
+        },
+        end: function () {
+          return window.innerWidth >= 900 ? 'bottom bottom' : 'bottom 38%';
+        },
+        scrub: 0.55,
+        invalidateOnRefresh: true
+      }
+    });
+  }
+
+  /* ------------------------------------------------------------
+     4. Work cards — real 3D tilt with a tracking specular
      ------------------------------------------------------------ */
 
   function initTilt() {
@@ -1006,7 +1113,7 @@
   }
 
   /* ------------------------------------------------------------
-     4. Capability rows — a light source that follows the cursor
+     5. Capability rows — a light source that follows the cursor
      ------------------------------------------------------------ */
 
   function initCapLight() {
@@ -1026,7 +1133,7 @@
   }
 
   /* ------------------------------------------------------------
-     5. Cursor
+     6. Cursor
      ------------------------------------------------------------ */
 
   function initCursor() {
@@ -1065,7 +1172,7 @@
   }
 
   /* ------------------------------------------------------------
-     6. Nav — condenses on scroll, hides on the way down
+     7. Nav — condenses on scroll, hides on the way down
      ------------------------------------------------------------ */
 
   function initNav() {
